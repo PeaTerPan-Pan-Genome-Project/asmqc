@@ -269,3 +269,10 @@ Findings:
 - Image size 2.9 GB exceeds the 2 GiB GitHub release-asset limit (§13.9);
   `release.yml` attaches the SIF only if it fits.
 - `release.yml` and the canary are untested; they need a pushed tag.
+
+Release path (2026-10-01). Canary run 36895113235 passed (§13.5): the
+organisation allows the actions, `GITHUB_TOKEN` creates and pushes a ghcr.io
+package, the pulled-back SIF has the same sha256. The `asmqc-canary` package
+must be deleted by a user with the `delete:packages` scope.
+`release.yml` builds as root, verifies the pushed image by pulling it back,
+and marks a/b/rc/dev versions as pre-releases; first test with `v0.1.0rc1`.
