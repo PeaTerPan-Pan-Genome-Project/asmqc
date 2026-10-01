@@ -247,6 +247,7 @@ def path_placeholders(opts: RunOptions) -> list[tuple[str, str]]:
         str(refs_dir()): "<refs>",
         str(asmqc_home()): "<asmqc>",
         sys.prefix: "<python>",
+        os.getcwd(): "<cwd>",
     }
     if os.environ.get("ASMQC_ENV_ROOT"):
         pairs[os.environ["ASMQC_ENV_ROOT"]] = "<envs>"

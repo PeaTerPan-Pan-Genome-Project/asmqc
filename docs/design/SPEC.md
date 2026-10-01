@@ -948,3 +948,6 @@ The concrete data and expected values are kept privately by the maintainers.
 8. `m09_aqi`: CRAQ 1.10 reports R-AQI and S-AQI but no single AQI (format
    in `IMPLEMENTATION_PLAN.md` §6). The column stays `NA` until the
    maintainers define it or drop it.
+9. The image is 2.9 GB; GitHub release assets are limited to 2 GiB. The
+   release attaches the sha256 and points to ghcr.io; the SIF itself is on
+   ghcr.io only, unless the maintainers want it split or slimmed.

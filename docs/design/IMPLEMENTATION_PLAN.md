@@ -251,3 +251,21 @@ external request. **[default]** choices:
   `combined/qc_summary.tsv` and `combined/report.html` (grouped table, M4
   karyoplots and M11 plots as small multiples, M6 internal stop % against
   M11 HP errors per Mb).
+
+Milestone 9 (2026-10-01). `asmqc test` (`smoketest.py`), `Singularity`,
+`build.sh`, `README.md`, `CHANGELOG.md`, `release.yml`. Local build with
+Apptainer 1.4.5: 4 min, `asmqc_0.1.0.dev0.sif` 2.9 GB, `%test` passes.
+Checked with the image:
+- `asmqc test` in a network namespace with only a downed loopback: passes,
+  51 s (no network at run time, §11.3).
+- full run, all nine modules incl. BUSCO and CRAQ, offline: 70 s, every
+  module `ok`; `qc_summary.tsv` identical to the dev-env run apart from the
+  identity columns.
+- tool versions as pinned; no local path in the result directory.
+Findings:
+- Snakemake writes a source cache under `$XDG_CACHE_HOME` (default
+  `~/.cache`), read-only in `%test`. The runner now puts `XDG_CACHE_HOME`,
+  `MPLCONFIGDIR` and `TMPDIR` under the workdir.
+- Image size 2.9 GB exceeds the 2 GiB GitHub release-asset limit (§13.9);
+  `release.yml` attaches the SIF only if it fits.
+- `release.yml` and the canary are untested; they need a pushed tag.

@@ -50,11 +50,20 @@ jobs:
           apptainer push "asmqc_${VERSION}.sif" \
             "oras://ghcr.io/peaterpan-pan-genome-project/asmqc/sif:${VERSION}"
 
+      # GitHub release assets are limited to 2 GiB; the image is larger, so the
+      # SIF is attached only if it fits (SPEC §13.9). ghcr.io always has it.
       - name: GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" \
-            "asmqc_${VERSION}.sif" "asmqc_${VERSION}.sif.sha256" \
-            --title "asmqc ${VERSION}" --notes-file CHANGELOG.md
+          sif="asmqc_${VERSION}.sif"
+          assets=("${sif}.sha256")
+          if [ "$(stat -c %s "$sif")" -lt 2147483648 ]; then assets+=("$sif"); fi
+          {
+            echo "singularity pull ${sif} oras://ghcr.io/peaterpan-pan-genome-project/asmqc/sif:${VERSION}"
+            echo
+            cat CHANGELOG.md
+          } > notes.md
+          gh release create "${GITHUB_REF_NAME}" "${assets[@]}" \
+            --title "asmqc ${VERSION}" --notes-file notes.md
