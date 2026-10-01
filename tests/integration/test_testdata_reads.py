@@ -86,3 +86,17 @@ def test_m09(result):
     assert row["m09_short_reads_used"] == "yes"
     assert row["m09_n_cse"] == "0"  # no structural error planted
     assert row["m09_cse_near_agp_junction"] == "0"
+
+
+def test_no_local_paths_in_result(result, testdata_reads, fake_refs):
+    """Nothing in the shared result names a local directory (SPEC §7.3)."""
+    *_, res = result
+    local = [str(res.parent), str(testdata_reads), str(fake_refs)]
+    for f in res.rglob("*"):
+        if not f.is_file() or "work" in f.relative_to(res).parts:
+            continue
+        if f.suffix == ".png":
+            continue
+        data = gzip.decompress(f.read_bytes()) if f.suffix == ".gz" else f.read_bytes()
+        for p in local:
+            assert p.encode() not in data, f"{p} in {f.relative_to(res)}"

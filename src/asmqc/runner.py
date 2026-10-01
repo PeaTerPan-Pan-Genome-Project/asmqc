@@ -205,6 +205,7 @@ def run(opts: RunOptions, command_line: str) -> int:
     }
     (out / "run_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
 
+    scrub_paths(out / "logs", path_placeholders(opts))
     failed = [m for m, r in results.items() if r.status == "failed"]
     if failed:
         print(f"asmqc: module(s) failed: {', '.join(failed)}; see {out / 'logs'}",
@@ -213,6 +214,40 @@ def run(opts: RunOptions, command_line: str) -> int:
     if not opts.keep_intermediates:
         clean_work(work)
     return EXIT_OK
+
+
+def path_placeholders(opts: RunOptions) -> list[tuple[str, str]]:
+    """Local directories and their placeholders, longest path first."""
+    pairs = {
+        str(opts.work.absolute()): "<workdir>",
+        str(opts.outdir.absolute()): "<outdir>",
+        str(refs_dir()): "<refs>",
+        str(asmqc_home()): "<asmqc>",
+        sys.prefix: "<python>",
+    }
+    if os.environ.get("ASMQC_ENV_ROOT"):
+        pairs[os.environ["ASMQC_ENV_ROOT"]] = "<envs>"
+    inputs = [opts.assembly, opts.agp, *opts.illumina, *opts.hifi, *opts.ont]
+    for f in inputs:
+        if f is not None:
+            pairs.setdefault(str(f.absolute().parent), "<input>")
+    for d in (os.environ.get("TMPDIR"), os.environ.get("HOME")):
+        if d and len(d) > 1:
+            pairs.setdefault(d, "<tmp>" if d == os.environ.get("TMPDIR") else "<home>")
+    return sorted(pairs.items(), key=lambda kv: -len(kv[0]))
+
+
+def scrub_paths(logs: Path, placeholders: list[tuple[str, str]]) -> None:
+    """Replace local paths in the logs: <label>/ is shared with the consortium."""
+    if not logs.is_dir():
+        return
+    for f in logs.iterdir():
+        if not f.is_file():
+            continue
+        text = f.read_text(errors="replace")
+        for path, ph in placeholders:
+            text = text.replace(path, ph)
+        f.write_text(text)
 
 
 def clean_work(work: Path) -> None:

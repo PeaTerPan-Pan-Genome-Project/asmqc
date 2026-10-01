@@ -933,6 +933,7 @@ The concrete data and expected values are kept privately by the maintainers.
 | 2026-10-01 | CRAQ version taken from `conda-meta` (its own output reports `1.0.9-alpha`) |
 | 2026-10-01 | BUSCO runs with `--opt-out-run-stats` (no network at run time) |
 | 2026-10-01 | gawk 5.4.1 in `core`: M11 callable regions from `samtools depth -a` need a C-speed filter |
+| 2026-10-01 | `logs/` is scrubbed of local paths at the end of every run (placeholders such as `<workdir>`) |
 
 ## 13. Open points (to the maintainers before deciding)
 
@@ -944,3 +945,6 @@ The concrete data and expected values are kept privately by the maintainers.
 5. The canary outcome; the go-ahead for the first versioned release.
 6. Any measured resource figure more than 2× the estimate.
 7. BUSCO 6.1.0 must accept `--lineage_dataset fabales_odb12.2 --offline`.
+8. `m09_aqi`: CRAQ 1.10 reports R-AQI and S-AQI but no single AQI (format
+   in `IMPLEMENTATION_PLAN.md` §6). The column stays `NA` until the
+   maintainers define it or drop it.
