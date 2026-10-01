@@ -10,7 +10,7 @@ sys.path.insert(0, str(TESTS))
 
 @pytest.fixture(scope="session")
 def fake_refs(tmp_path_factory) -> Path:
-    """Random stand-ins for the CARP rDNA library and the plastid genome."""
+    """Random stand-ins for the CARP rDNA library and the organelle genomes."""
     d = tmp_path_factory.mktemp("refs")
     r = random.Random(9)
 
@@ -21,6 +21,7 @@ def fake_refs(tmp_path_factory) -> Path:
     (d / "rdna_library.fasta").write_text(
         "".join(f">u{i}#rDNA/45S_rDNA/{c}\n{s(n)}\n" for i, (c, n) in enumerate(lib)))
     (d / "plastid_NC_014057.1.fa").write_text(">NC_014057.1\n" + s(122_169) + "\n")
+    (d / "mito_PP555264.1.fa").write_text(">PP555264.1\n" + s(50_000) + "\n")
     return d
 
 

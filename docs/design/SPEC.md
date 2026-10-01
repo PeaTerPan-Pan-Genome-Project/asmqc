@@ -597,9 +597,12 @@ approx_array_bp, fwd_repeats, rev_repeats.
 
 ```
 busco --in ASM.fa --mode genome --lineage_dataset fabales_odb12.2 --offline \
+      --opt-out-run-stats \
       --download_path /opt/asmqc/refs/busco_downloads --cpu N --out busco --out_path work/ -f
 ```
 - BUSCO 6.1.0 with the eukaryote default predictor, **miniprot**; assert it.
+- `--opt-out-run-stats`: BUSCO 6 otherwise sends anonymous usage data, which
+  breaks "no network at run time" (§5.1).
 - **Assert the lineage `fabales_odb12.2`, dated 2026-05-13, with 7,702
   markers**; the module fails otherwise.
 - From `short_summary.json`: C / S / D / F / M %, number of markers, and the
@@ -928,6 +931,7 @@ The concrete data and expected values are kept privately by the maintainers.
 | 2026-10-01 | Public repository, GPL-3.0; no unpublished data committed |
 | 2026-10-01 | Python code as package `src/asmqc/`; thin Snakemake rules; `envs/dev.yaml` + pytest for development outside the image. Build order in `IMPLEMENTATION_PLAN.md` |
 | 2026-10-01 | CRAQ version taken from `conda-meta` (its own output reports `1.0.9-alpha`) |
+| 2026-10-01 | BUSCO runs with `--opt-out-run-stats` (no network at run time) |
 
 ## 13. Open points (to the maintainers before deciding)
 

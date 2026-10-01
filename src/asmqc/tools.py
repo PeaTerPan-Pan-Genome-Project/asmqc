@@ -72,8 +72,8 @@ def tool_version(tool: str) -> str | None:
     b = env_bin(env)
     environ = os.environ | ({"PATH": f"{b}:{os.environ.get('PATH', '')}"} if b else {})
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=120, check=False,
-                           env=environ)
+        r = subprocess.run(cmd, capture_output=True, text=True, errors="replace", timeout=120,
+                           check=False, env=environ)
     except (OSError, subprocess.TimeoutExpired):
         return None
     m = re.search(pattern, r.stdout + r.stderr, re.MULTILINE)

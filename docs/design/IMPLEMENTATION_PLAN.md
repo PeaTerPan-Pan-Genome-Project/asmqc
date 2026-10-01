@@ -174,3 +174,31 @@ value equals `expected.json`; M2 agrees with QUAST. **[default]** choices:
 - QUAST agreement compares N50, L50 and N90 of the scaffolds (QUAST column 1)
   and of the N-split contigs (`_broken` column). QUAST's `# contigs` for the
   broken assembly is not compared: it differs from its own `>= 0 bp` count.
+
+Milestone 6 (2026-10-01). M4, M5, M6, M7. On the synthetic data with the real
+references every M4, M5 and M7 value equals `expected.json`; M6 runs (0 %
+complete, no genes) and its lineage and predictor assertions pass. Resolved:
+- §13.3: tidk `forward_repeat_number` counts the search string (TTTAGGG),
+  `reverse_repeat_number` its reverse complement; `window` is the window end,
+  capped at the sequence length. Confirmed on the planted arms; real curated
+  assemblies (§11.2) remain the biological check.
+- §13.7: BUSCO 6.1.0 runs `--offline` with `fabales_odb12.2` (25 s on 2 Mb).
+  BUSCO 6 sends usage statistics unless `--opt-out-run-stats`; added to §8.6.
+**[default]** choices:
+- M4 distances are at window resolution: band start − 1, or length − band
+  end. Dominance is a strict majority; a tie is `wrong_orientation`. A band
+  > 50 kb from both ends is interstitial even when it is the band nearest an
+  end (that arm is then `absent`). `m04_unplaced_with_telomere` counts
+  sequences.
+- M5 `m05_rdna45s_loci` / `m05_rdna5s_loci`: chromosomes carrying an array of
+  the family, in chr1–chr7 order, then `unplaced` if any array lies on an
+  unplaced sequence (e.g. `chr4;chr7;unplaced`). Array coordinates span the
+  first to the last subunit hit. Largest organelle block = largest merged
+  interval. `organelle_scaffolds.tsv` lists every unplaced sequence with an
+  organelle hit; the `organelle` column says whether it passed 80 %.
+- M6 `m06_complete_on_unplaced` counts Complete (single-copy and duplicated)
+  BUSCO ids with at least one copy on an unplaced sequence.
+- M7 total for `m07_total_minus_duplicate_bp` is the whole assembly. The
+  §8.7 cross-check with M6 is computed in the report (milestone 8).
+Pending: M4 `karyoplot.png` needs the vendored
+`telomere_karyoplot.py` (§6), not reachable from the agent sandbox.

@@ -35,6 +35,12 @@ def asmqc_home() -> Path:
     return Path(env) if env else Path(__file__).resolve().parents[2]
 
 
+def refs_dir() -> Path:
+    """Reference data (SPEC §6): $ASMQC_REFS, else <ASMQC_HOME>/refs."""
+    env = os.environ.get("ASMQC_REFS")
+    return Path(env).absolute() if env else asmqc_home() / "refs"
+
+
 def build_info() -> dict:
     """Version, git commit and lock-file hashes (VERSION.json in the image)."""
     home = asmqc_home()
@@ -120,6 +126,7 @@ def write_config(opts: RunOptions, plan: dict[str, planner.ModulePlan]) -> Path:
         "plan": planner.as_dict(plan),
         "read_types": planner.read_types_needed(plan),
         "python": sys.executable,
+        "refs": str(refs_dir()),
     }
     path = work / "config.yaml"
     path.write_text(yaml.safe_dump(cfg, sort_keys=False))

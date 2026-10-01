@@ -34,3 +34,9 @@ def write_tsv(path: Path, header: list[str], rows) -> None:
         w = csv.writer(fh, delimiter="\t", lineterminator="\n")
         w.writerow(header)
         w.writerows(rows)
+
+
+def read_fai(path: Path) -> dict[str, int]:
+    """Sequence lengths from a samtools .fai, in file order."""
+    with path.open() as fh:
+        return {f[0]: int(f[1]) for f in (line.split("\t") for line in fh)}
