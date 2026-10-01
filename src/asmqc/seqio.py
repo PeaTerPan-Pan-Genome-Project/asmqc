@@ -1,6 +1,7 @@
 """Minimal sequence-file helpers shared by validation, prep and modules."""
 
 import gzip
+import hashlib
 from collections.abc import Iterator
 from pathlib import Path
 from typing import BinaryIO
@@ -24,3 +25,11 @@ def fasta_names(path: Path) -> Iterator[str]:
         for line in fh:
             if line.startswith(b">"):
                 yield line[1:].split(None, 1)[0].decode() if line[1:].strip() else ""
+
+
+def file_md5(path: Path) -> str:
+    h = hashlib.md5()
+    with path.open("rb") as fh:
+        for block in iter(lambda: fh.read(1 << 20), b""):
+            h.update(block)
+    return h.hexdigest()

@@ -2,7 +2,6 @@
 
 import gzip
 import json
-import random
 import re
 import sys
 from pathlib import Path
@@ -11,22 +10,6 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
 import make_testdata as mt
-
-
-@pytest.fixture(scope="module")
-def fake_refs(tmp_path_factory) -> Path:
-    """Random stand-ins for the CARP rDNA library and the plastid genome."""
-    d = tmp_path_factory.mktemp("refs")
-    r = random.Random(9)
-
-    def s(n):
-        return "".join(r.choices("ACGT", k=n))
-
-    lib = [("18S", 1800), ("18S", 1700), ("5.8S", 160), ("25S", 3400), ("5S", 120)]
-    (d / "rdna_library.fasta").write_text(
-        "".join(f">u{i}#rDNA/45S_rDNA/{c}\n{s(n)}\n" for i, (c, n) in enumerate(lib)))
-    (d / "plastid_NC_014057.1.fa").write_text(">NC_014057.1\n" + s(122_169) + "\n")
-    return d
 
 
 @pytest.fixture(scope="module")

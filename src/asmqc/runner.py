@@ -18,13 +18,14 @@ from asmqc import __version__, summary, tools
 from asmqc import flags as fl
 from asmqc import plan as planner
 from asmqc.params import PARAMS
+from asmqc.seqio import file_md5
 from asmqc.validate import RunOptions, ValidationError, cpu_flags, validate
 
 EXIT_OK, EXIT_INVALID, EXIT_MODULE_FAILED = 0, 1, 2
 
 # Top-level entries the workflow creates in the workdir. Cleanup removes only
 # these, so a --workdir that holds other files is never wiped.
-WORK_ENTRIES = ("config.yaml", "chromosome_map.json", "prep", "map", "meryl",
+WORK_ENTRIES = ("config.yaml", "chromosome_map.json", "prep", "scan", "map", "meryl",
                 "benchmarks", "tmp", ".snakemake", *(f"m{n:02d}" for n in range(1, 12)))
 
 
@@ -76,14 +77,6 @@ def host_info(opts: RunOptions) -> dict:
     simd = sorted(f for f in cpu_flags() if f.startswith(("avx", "sse4")))
     return {"cpu_model": model, "cpu_flags": simd, "threads": opts.threads,
             "mem_gb": opts.mem_gb}
-
-
-def file_md5(path: Path) -> str:
-    h = hashlib.md5()
-    with path.open("rb") as fh:
-        for block in iter(lambda: fh.read(1 << 20), b""):
-            h.update(block)
-    return h.hexdigest()
 
 
 def inputs_info(opts: RunOptions, assembly_md5: str | None) -> dict:

@@ -155,3 +155,22 @@ leaves open, settled as **[default]**:
   `failed`; the run exits 2.
 - Tool versions run each tool with its env's `bin/` first on PATH: scripts
   such as `busco` use `#!/usr/bin/env python`.
+
+Milestone 5 (2026-10-01). M1 and M2, with a shared `scan` stage (one pass over
+the FASTA; per-sequence composition, N-runs ≥ 10, file facts) that both read.
+Scan of a 500 Mb sequence: 18 s, 2 GB RSS. On the synthetic data every M1
+value equals `expected.json`; M2 agrees with QUAST. **[default]** choices:
+- `seq_lt_200bp` is raised for 20–199 bp only (a < 20 bp sequence carries
+  `seq_lt_20bp`); `m01_n_lt200bp` counts every sequence < 200 bp. An empty
+  sequence carries `empty_sequence` only.
+- `terminal_n`: one flag per affected end; `m01_n_terminal_n` counts
+  sequences.
+- `m01_n_duplicate_names` counts distinct names that occur more than once.
+- An empty name or one with non-printable characters raises `invalid_char`
+  with the name as `seq_id`; §7.5 has no separate code.
+- `m01_n_invalid_chars` and `m01_n_iupac` count characters, not sequences.
+- `m02_n_gaps` / `m02_gap_bp` follow the contig method: AGP gap lines when
+  `agp`, N-runs ≥ 10 bp when `nsplit10`.
+- QUAST agreement compares N50, L50 and N90 of the scaffolds (QUAST column 1)
+  and of the N-split contigs (`_broken` column). QUAST's `# contigs` for the
+  broken assembly is not compared: it differs from its own `>= 0 bp` count.

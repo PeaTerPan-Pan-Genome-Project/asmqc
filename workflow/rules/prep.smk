@@ -26,3 +26,21 @@ rule prep:
         "{params.pre}"
         "( {PY} -m asmqc.prep --assembly {input.fa} {params.agp} --map {input.map}"
         " --outdir {W}/prep && samtools faidx {output.fa} ) > {log} 2>&1"
+
+
+# Shared stage: one pass over the assembly for M1 and M2.
+rule scan:
+    input:
+        W / "prep" / "asm.fa",
+    output:
+        seqs=W / "scan" / "sequences.tsv",
+        gaps=W / "scan" / "gaps.tsv",
+        facts=W / "scan" / "file.json",
+    params:
+        pre=env("core", "scan"),
+    log:
+        log("scan"),
+    benchmark:
+        bench("scan", "scan")
+    shell:
+        "{params.pre}{PY} -m asmqc.scan {input} {W}/scan > {log} 2>&1"
