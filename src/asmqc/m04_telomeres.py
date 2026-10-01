@@ -5,7 +5,8 @@ counts the search string TTTAGGG, reverse_repeat_number its reverse
 complement CCCTAAA; `window` is the window end, capped at the sequence length.
 A capped start arm is CCCTAAA-dominated, a capped end arm TTTAGGG-dominated.
 
-Usage: python -m asmqc.m04_telomeres --windows TSV --fai FAI --outdir DIR --work DIR
+Usage: python -m asmqc.m04_telomeres --windows TSV --fai FAI [--label L] --outdir DIR
+           --work DIR
 """
 
 import argparse
@@ -15,7 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from asmqc import flags as fl
-from asmqc import module
+from asmqc import karyoplot, module
 from asmqc.params import PARAMS
 from asmqc.validate import CHROMOSOMES
 
@@ -119,12 +120,13 @@ def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--windows", type=Path, required=True)
     ap.add_argument("--fai", type=Path, required=True)
+    ap.add_argument("--label", default="")
     ap.add_argument("--outdir", type=Path, required=True)
     ap.add_argument("--work", type=Path, required=True)
     args = ap.parse_args(argv)
 
     lengths = module.read_fai(args.fai)
-    values, flags, arms, inter, unpl, _ = evaluate(read_windows(args.windows), lengths)
+    values, flags, arms, inter, unpl, by_seq = evaluate(read_windows(args.windows), lengths)
     out = args.outdir
     module.write_tsv(out / "telomeres.tsv",
                      ["chromosome", "arm", "status", "distance_from_end_bp", "approx_array_bp",
@@ -136,6 +138,9 @@ def main(argv: list[str] | None = None) -> None:
                      ["seq_id", "length", "end", "distance_from_end_bp", "fwd_repeats",
                       "rev_repeats", "approx_array_bp"], unpl)
     shutil.copyfile(args.windows, out / "tidk_windows.tsv")
+    karyoplot.draw(out / "karyoplot.png", lengths, by_seq, arms, inter,
+                   f"{args.label} telomeres (TTTAGGG): {values['m04_capped_arms']}/14 arms capped, "
+                   f"{values['m04_t2t_chromosomes']}/7 T2T".strip())
     module.finish(args.work, M, values, flags)
 
 

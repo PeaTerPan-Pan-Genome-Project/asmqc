@@ -32,4 +32,4 @@ rule m04:
         bench("m04", "m04")
     shell:
         "{params.pre}{PY} -m asmqc.m04_telomeres --windows {input.windows} --fai {input.fai}"
-        " --outdir {params.out} --work {W}/m04 > {log} 2>&1"
+        " --label {config[label]} --outdir {params.out} --work {W}/m04 > {log} 2>&1"

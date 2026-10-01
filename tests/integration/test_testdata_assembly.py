@@ -88,6 +88,8 @@ def test_m04(result):
             (res / "m04_telomeres" / "telomeres.tsv").read_text().splitlines()[1:])}
     want = {(c, a): s["status"] for c, arms in e["arms"].items() for a, s in arms.items()}
     assert got == want
+    png = res / "m04_telomeres" / "karyoplot.png"
+    assert png.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"
 
 
 def test_m05(result):

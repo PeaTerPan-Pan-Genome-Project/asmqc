@@ -200,5 +200,7 @@ complete, no genes) and its lineage and predictor assertions pass. Resolved:
   BUSCO ids with at least one copy on an unplaced sequence.
 - M7 total for `m07_total_minus_duplicate_bp` is the whole assembly. The
   §8.7 cross-check with M6 is computed in the report (milestone 8).
-Pending: M4 `karyoplot.png` needs the vendored
-`telomere_karyoplot.py` (§6), not reachable from the agent sandbox.
+M4 `karyoplot.png`: `src/asmqc/karyoplot.py`, adapted from the vendored
+`telomere_karyoplot.py` (§6, origin and changes in its header). Bands are
+coloured by status (status palette, each colour with a legend label); absent
+arms carry a marker.
