@@ -368,7 +368,9 @@ If NCBI's FASTA formatting ever changes the file md5, verify the md5 of the
 }
 ```
 
-- Tool versions are read from the tools at run time.
+- Tool versions are read from the tools at run time. Exception: CRAQ, whose
+  1.10 package prints `1.0.9-alpha`; its version is read from
+  `/opt/envs/craq/conda-meta`.
 - Every parameter named in §8 appears under `parameters`.
 - Input file **names**, not full paths, are recorded **[default]**, so a shared
   result does not expose the user's directory layout. `--manifest-full-paths`
@@ -925,6 +927,7 @@ The concrete data and expected values are kept privately by the maintainers.
 | 2026-10-01 | M11: bcftools; homopolymer ≥ 4 bp; dinucleotide class; error BED kept |
 | 2026-10-01 | Public repository, GPL-3.0; no unpublished data committed |
 | 2026-10-01 | Python code as package `src/asmqc/`; thin Snakemake rules; `envs/dev.yaml` + pytest for development outside the image. Build order in `IMPLEMENTATION_PLAN.md` |
+| 2026-10-01 | CRAQ version taken from `conda-meta` (its own output reports `1.0.9-alpha`) |
 
 ## 13. Open points (to the maintainers before deciding)
 

@@ -105,9 +105,30 @@ locks; every pinned tool version in §5.1 exists on bioconda.
 - CRAQ 1.10 (bioconda `craq-1.10`) prints `CRAQ Version: 1.0.9-alpha` in its
   usage text; upstream did not update the string. "Tool versions are read
   from the tools at run time" (§7.3) cannot hold for CRAQ: read the version
-  from the environment's `conda-meta` instead. **Open point for the
-  maintainers.**
+  from the environment's `conda-meta` instead (decided 2026-10-01; SPEC §7.3).
 - `merqury.sh` needs `MERQURY=/opt/envs/merqury/share/merqury`, normally set by
   conda activation. Rules do not activate (§5.2), so the rule sets it.
 - `craq` and `quast` envs pull minimap2 2.31 as a dependency. asmqc never calls
   it: CRAQ receives the mm2-plus BAMs and QUAST runs without a reference.
+
+Milestone 3 (2026-10-01). `tests/make_testdata.py` writes `asm.fa`,
+`asm.agp`, paired reads (25×, 157,861 pairs) and `expected.json`; 17 MB,
+17 s, byte-identical per seed. Design choices beyond §11.1:
+- Gap positions are not multiples of 1,000, so the round AGP cuts are only
+  the planted ones: 8 of 28 (subseq `A − 1`, subseq `B`,
+  `component_beg − 1`, five round-length unplaced).
+- chr6 carries a 20 N run (a gap for `nsplit10`, not in the AGP) and a 5 N run
+  (below the gap threshold), so `m02_contig_n50_nsplit10` differs from the AGP
+  value.
+- 25× read coverage instead of ~20×: k-mer coverage at k = 21 is ~22×, above
+  the 20× `low_coverage` threshold.
+- Unplaced names are descriptive (`unplaced_dup`, `unplaced_plastid`, …).
+- Prototype M11 (mm2plus `-ax sr`, the §8.11 bcftools pipeline) on data built
+  with random stand-in references: 30/30 HP and 5/5 STR2 errors recovered as
+  hom-alt, no other hom-alt calls.
+
+Pending with the real references (`refs/fetch_refs.py` cannot reach NCBI or
+GitHub from the agent sandbox): BLAST of the rDNA library against the plastid
+segments (cp rRNA genes must not create extra rDNA copies) and mm2plus of the
+mito genome against the plastid segments (plastid-derived mito DNA would add
+mito-like bp).

@@ -1,0 +1,5 @@
+name	url	md5	dest	unpack
+fabales_odb12.2	https://busco-data.ezlab.org/v6/data/lineages/fabales_odb12.2.2026-05-13.tar.gz	5505de6096f169497b957fd56475d434	busco_downloads/lineages	tar.gz
+plastid	https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=NC_014057.1&rettype=fasta&retmode=text	959a1c9be9e5c9e21a47a7abd31fd295	plastid_NC_014057.1.fa	-
+mito	https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=PP555264.1&rettype=fasta&retmode=text	3b6f306756e911a3ed2ff7c5005d3a03	mito_PP555264.1.fa	-
+rdna_library	https://raw.githubusercontent.com/kavonrtep/CARP/1.9.0/data/rdna_library.fasta	f09e64b09f99f83a44653a6a9153373b	rdna_library.fasta	-

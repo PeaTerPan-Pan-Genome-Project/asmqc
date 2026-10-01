@@ -14,3 +14,6 @@ __pycache__/
 .ruff_cache/
 build/
 dist/
+
+# Reference data fetched for development (refs/fetch_refs.py .refs)
+.refs/
