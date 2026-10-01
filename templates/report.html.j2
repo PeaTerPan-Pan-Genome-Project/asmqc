@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>asmqc {{ row.label }}</title>
+<style>
+{% include "_style.css.j2" %}
+</style>
+</head>
+<body>
+<main>
+<header class="card">
+  <h1>asmqc report: {{ row.label }}</h1>
+  <p class="muted">asmqc {{ row.asmqc_version }} · run {{ row.run_date }} ·
+    assembly md5 <code>{{ row.assembly_md5 }}</code></p>
+  <p>ENA rules <span class="badge {{ row.ena_rules }}">{{ row.ena_rules }}</span>
+    · {{ row.n_flags_ena_blocking }} ENA-blocking · {{ row.n_flags_warning }}
+    warning{{ '' if row.n_flags_warning == '1' else 's' }} · {{ row.n_flags_info }} info</p>
+  {% set reads = manifest.inputs.reads %}
+  {% if reads %}
+  <p>Reads:
+    {% for r in reads %}
+    {{ r.type }}{% if r.chemistry %} ({{ r.chemistry }}){% endif %},
+    {{ "independent of the assembly" if r.reads_used_in_assembly == "no"
+       else "used to build the assembly" }}{{ "; " if not loop.last }}
+    {% endfor %}
+  </p>
+  {% else %}
+  <p class="muted">No reads supplied: modules 8, 9 and 11 did not run.</p>
+  {% endif %}
+  <nav>{% for s in sections %}<a href="#{{ s.id }}">{{ s.id }}</a>{% endfor %}
+    <a href="#flags">flags</a><a href="#provenance">provenance</a></nav>
+</header>
+
+<h2 id="flags">Flags</h2>
+<div class="card">
+  {% if blocking or warnings %}
+  <div class="scroll"><table>
+    <tr><th>severity</th><th>module</th><th>code</th><th>sequence</th><th>start</th>
+      <th>end</th><th>value</th><th>message</th></tr>
+    {% for f in blocking + warnings %}
+    <tr><td><span class="badge {{ 'failed' if f.severity == 'ENA_BLOCKING' else 'warn' }}">
+      {{ f.severity }}</span></td>
+      <td>{{ f.module }}</td><td>{{ f.code }}</td><td>{{ f.seq_id }}</td>
+      <td class="num">{{ f.start }}</td><td class="num">{{ f.end }}</td>
+      <td>{{ f.value }}</td><td>{{ f.message }}</td></tr>
+    {% endfor %}
+  </table></div>
+  {% else %}
+  <p>No ENA-blocking flags and no warnings.</p>
+  {% endif %}
+  {% if info %}
+  <details><summary>{{ info|length }} information flag(s)</summary>
+    <div class="scroll"><table>
+      <tr><th>module</th><th>code</th><th>sequence</th><th>start</th><th>end</th>
+        <th>value</th><th>message</th></tr>
+      {% for f in info %}
+      <tr><td>{{ f.module }}</td><td>{{ f.code }}</td><td>{{ f.seq_id }}</td>
+        <td class="num">{{ f.start }}</td><td class="num">{{ f.end }}</td>
+        <td>{{ f.value }}</td><td>{{ f.message }}</td></tr>
+      {% endfor %}
+    </table></div>
+  </details>
+  {% endif %}
+</div>
+
+<h2>Modules</h2>
+{% for s in sections %}
+<section class="card" id="{{ s.id }}">
+  <div class="section-head">
+    <h3>{{ s.id|upper }} · {{ s.title }}</h3>
+    <span class="badge {{ s.status }}">{{ s.status|replace("_", " ") }}</span>
+  </div>
+  {% if s.status != "ok" %}
+  <p class="muted">{{ s.reason or "" }}</p>
+  {% else %}
+  <p>{{ s.text }}</p>
+  <div class="kv">
+    {% for k, v in s.metrics %}<div><span>{{ k }}</span><span>{{ v }}</span></div>{% endfor %}
+  </div>
+  {% for n in s.notes %}<p>{{ n }}</p>{% endfor %}
+  <div class="{{ 'figs' if s.images|length > 1 else '' }}">
+  {% for caption, uri in s.images %}
+  <figure><img src="{{ uri }}" alt="{{ caption }}"><figcaption>{{ caption }}</figcaption></figure>
+  {% endfor %}
+  </div>
+  {% endif %}
+</section>
+{% endfor %}
+
+<h2 id="provenance">Provenance</h2>
+<div class="card">
+  <p>Command line</p>
+  <pre>{{ manifest.command_line }}</pre>
+  <p>asmqc {{ manifest.asmqc_version }}, commit <code>{{ manifest.git_commit }}</code>;
+    run {{ manifest.start }} to {{ manifest.end }} on {{ manifest.host.cpu_model }}
+    ({{ manifest.host.threads }} threads, {{ manifest.host.mem_gb }} GB).</p>
+  <div class="kv">
+    {% for tool, version in manifest.tools.items() %}
+    <div><span>{{ tool }}</span><span>{{ version or "not found" }}</span></div>
+    {% endfor %}
+  </div>
+  <p style="margin-top:12px">Reference data</p>
+  <div class="kv">
+    {% for name, ref in manifest.reference_data.items() %}
+    <div><span>{{ name }}</span><span><code>{{ ref.md5 }}</code></span></div>
+    {% endfor %}
+  </div>
+  <details style="margin-top:12px"><summary>Parameters</summary><pre>{{ params }}</pre></details>
+</div>
+</main>
+</body>
+</html>

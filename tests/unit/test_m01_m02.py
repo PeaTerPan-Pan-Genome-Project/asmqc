@@ -122,7 +122,8 @@ def test_m02_method_and_values(tmp_path):
             f"chr{i}\t101\t120\t2\tN\t20\tscaffold\tyes\tproximity_ligation",
             f"chr{i}\t121\t200\t3\tW\tc{i}b\t1\t80\t+")
     ] + ["u1\t1\t50\t1\tW\tc8\t1\t50\t+"])
-    v, per_chrom, _, _ = m02_contiguity.evaluate(d, p)
+    v, per_chrom, _, _, contigs = m02_contiguity.evaluate(d, p)
+    assert sorted(contigs) == [50] + [80] * 7 + [100] * 7
     assert v["m02_contig_method"] == "agp" and v["m02_n_contigs"] == 15
     assert v["m02_chrom_bp"] == 1400 and v["m02_n_unplaced"] == 1
     assert v["m02_n_gaps"] == 7 and v["m02_gap_bp"] == 140

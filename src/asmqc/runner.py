@@ -206,6 +206,13 @@ def run(opts: RunOptions, command_line: str) -> int:
     (out / "run_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
 
     scrub_paths(out / "logs", path_placeholders(opts))
+    try:
+        from asmqc import report
+
+        report.render_assembly(out, work)
+    except Exception as e:  # noqa: BLE001 - the report must not hide module results
+        print(f"asmqc: error: report.html not written: {e}", file=sys.stderr)
+        return EXIT_MODULE_FAILED
     failed = [m for m, r in results.items() if r.status == "failed"]
     if failed:
         print(f"asmqc: module(s) failed: {', '.join(failed)}; see {out / 'logs'}",

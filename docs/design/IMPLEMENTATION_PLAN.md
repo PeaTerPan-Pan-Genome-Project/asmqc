@@ -233,3 +233,21 @@ call. The test generator gained `--hifi-coverage` (development only; the
 **[default]**: M11 counts het calls at QUAL ≥ 30 like errors; `errors.bed.gz`
 `change` is `+2A`/`-1T` for HP and `+2`/`-4` (bp) for STR2;
 `m11_hp_ins_del_ratio` is `NA` without deletions.
+
+Milestone 8 (2026-10-01). `report.py`, `plots.py`, `aggregate.py`,
+`templates/`. `report.html` is written by the wrapper after the merge (a
+report failure exits 2); it embeds every plot as a base64 PNG and has no
+external request. **[default]** choices:
+- Plots are matplotlib PNGs with one colour scheme (categorical slot 1 for a
+  single series, slots 1–2 for A/T vs G/C, status colours in the karyoplot).
+  The HTML follows light/dark; PNGs sit on a light card in both.
+- Each module section lists all its `qc_summary.tsv` columns as key numbers,
+  a fixed "how to read" paragraph and its plots. The §8.7 and §8.11
+  cross-checks appear as notes in the M6 and M11 sections.
+- The M2 cumulative plot uses contig lengths from the workdir
+  (`m02/contig_lengths.txt`); the result directory does not carry them.
+- `asmqc aggregate` also refuses mixed asmqc MAJOR.MINOR versions (principle
+  E) and duplicate labels, besides differing headers (§7.2). It writes
+  `combined/qc_summary.tsv` and `combined/report.html` (grouped table, M4
+  karyoplots and M11 plots as small multiples, M6 internal stop % against
+  M11 HP errors per Mb).

@@ -100,3 +100,11 @@ def test_no_local_paths_in_result(result, testdata_reads, fake_refs):
         data = gzip.decompress(f.read_bytes()) if f.suffix == ".gz" else f.read_bytes()
         for p in local:
             assert p.encode() not in data, f"{p} in {f.relative_to(res)}"
+
+
+def test_report(result):
+    *_, res = result
+    html = (res / "report.html").read_text()
+    # M11 HP plot, plus the two Merqury spectra when M8 ran; M9 has no plot
+    assert html.count("data:image/png;base64,") == (3 if HAS_MERQURY else 1)
+    assert "src=\"http" not in html and "href=\"http" not in html

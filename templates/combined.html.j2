@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>asmqc combined ({{ rows|length }} assemblies)</title>
+<style>
+{% include "_style.css.j2" %}
+main { max-width: 1400px; }
+th.group { text-align: left; border-bottom: 2px solid var(--line); }
+td, th { white-space: nowrap; }
+</style>
+</head>
+<body>
+<main>
+<header class="card">
+  <h1>asmqc combined report</h1>
+  <p class="muted">{{ rows|length }} assemblies · asmqc {{ rows[0].asmqc_version }}</p>
+  <nav><a href="#table">table</a><a href="#telomeres">telomeres</a>
+    <a href="#homopolymers">homopolymer errors</a><a href="#stops">stop codons vs HP errors</a></nav>
+</header>
+
+<h2 id="table">All assemblies</h2>
+<div class="card"><div class="scroll"><table>
+  <tr>{% for g, cols in groups %}
+    <th class="group" colspan="{{ cols|length }}">{{ g if g == "identity" else g|upper ~ " · " ~ titles[g] }}</th>
+  {% endfor %}</tr>
+  <tr>{% for g, cols in groups %}{% for c in cols %}
+    <th>{{ c if g == "identity" else c[4:] }}</th>{% endfor %}{% endfor %}</tr>
+  {% for r in rows %}
+  <tr>{% for g, cols in groups %}{% for c in cols %}
+    {% set v = r[c] %}
+    {% if c.endswith("_status") or c == "ena_rules" %}
+    <td><span class="badge {{ v }}">{{ v }}</span></td>
+    {% else %}
+    <td class="{{ 'num' if v[:1].isdigit() else '' }}">{{ v }}</td>
+    {% endif %}
+  {% endfor %}{% endfor %}</tr>
+  {% endfor %}
+</table></div></div>
+
+<h2 id="telomeres">Telomeres (M4)</h2>
+{% if karyoplots %}
+<div class="grid">
+  {% for label, uri in karyoplots %}
+  <figure class="card"><img src="{{ uri }}" alt="karyoplot {{ label }}">
+    <figcaption>{{ label }}</figcaption></figure>
+  {% endfor %}
+</div>
+{% else %}<p class="muted">No assembly has M4 results.</p>{% endif %}
+
+<h2 id="homopolymers">Homopolymer errors (M11)</h2>
+{% if hp_plots %}
+<div class="grid">
+  {% for label, uri in hp_plots %}
+  <figure class="card"><img src="{{ uri }}" alt="HP errors {{ label }}">
+    <figcaption>{{ label }}</figcaption></figure>
+  {% endfor %}
+</div>
+{% else %}<p class="muted">No assembly has M11 results.</p>{% endif %}
+
+<h2 id="stops">Internal stop codons against homopolymer errors</h2>
+<div class="card">
+  <p>Frameshifting homopolymer errors in genes surface as internal stop codons in BUSCO
+    genes; assemblies with more HP errors per Mb are expected to the right and higher.</p>
+  {% if scatter %}
+  <figure><img src="{{ scatter }}" alt="M6 internal stop % against M11 HP errors per Mb">
+    <figcaption>{{ n_points }} assemblies with both M6 and M11 results</figcaption></figure>
+  {% else %}<p class="muted">No assembly has both M6 and M11 results.</p>{% endif %}
+</div>
+</main>
+</body>
+</html>

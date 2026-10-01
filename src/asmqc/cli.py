@@ -31,6 +31,12 @@ def _version(args: argparse.Namespace) -> int:
     return 0
 
 
+def _aggregate(args: argparse.Namespace) -> int:
+    from asmqc import aggregate
+
+    return aggregate.run(args.dirs, args.out)
+
+
 def _run(args: argparse.Namespace, argv: list[str]) -> int:
     try:
         chromosomes = parse_chromosome_map(args.chromosomes)
@@ -77,8 +83,10 @@ def build_parser() -> argparse.ArgumentParser:
     r.set_defaults(func=_run)
 
     sub.add_parser("version", help="print versions as JSON").set_defaults(func=_version)
-    sub.add_parser("aggregate", help="merge result directories").set_defaults(
-        func=_not_implemented)
+    a = sub.add_parser("aggregate", help="merge result directories into one table and report")
+    a.add_argument("dirs", type=Path, nargs="+", metavar="DIR", help="<outdir>/<label>/ dirs")
+    a.add_argument("--out", type=Path, required=True)
+    a.set_defaults(func=_aggregate)
     sub.add_parser("test", help="run the built-in smoke test").set_defaults(
         func=_not_implemented)
     return parser

@@ -42,7 +42,7 @@ def quast_disagreements(quast: dict, scaffolds: list[int], nsplit: list[int]) ->
     return problems
 
 
-def evaluate(scan_dir: Path, agp_path: Path | None) -> tuple[dict, list, list[int], list[int]]:
+def evaluate(scan_dir: Path, agp_path: Path | None):
     seqs = read_sequences(scan_dir)
     lengths = {s.seq_id: s.length for s in seqs}
     gaps_by_seq: dict[str, list[tuple[int, int]]] = {}
@@ -101,7 +101,7 @@ def evaluate(scan_dir: Path, agp_path: Path | None) -> tuple[dict, list, list[in
         cg = gaps_per_seq.get(c, [])
         per_chrom.append((c, lengths.get(c, 0), len(contigs_by_seq.get(c, [])), len(cg),
                           sum(cg), nx(contigs_by_seq.get(c, []), 0.5)[0]))
-    return values, per_chrom, scaffolds, nsplit
+    return values, per_chrom, scaffolds, nsplit, contigs
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -113,7 +113,7 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--work", type=Path, required=True)
     args = ap.parse_args(argv)
 
-    values, per_chrom, scaffolds, nsplit = evaluate(args.scan, args.agp)
+    values, per_chrom, scaffolds, nsplit, contigs = evaluate(args.scan, args.agp)
     problems = quast_disagreements(parse_quast(args.quast_report), scaffolds, nsplit)
     if problems:
         raise SystemExit("asmqc and QUAST disagree (a bug):\n" + "\n".join(problems))
@@ -125,6 +125,9 @@ def main(argv: list[str] | None = None) -> None:
                      ["chromosome", "length", "contigs", "gaps", "gap_bp", "contig_n50"],
                      per_chrom)
     shutil.copyfile(args.quast_report, out / "quast_report.tsv")
+    args.work.mkdir(parents=True, exist_ok=True)  # for the report's cumulative plot
+    (args.work / "contig_lengths.txt").write_text(
+        "".join(f"{n}\n" for n in sorted(contigs, reverse=True)))
     module.finish(args.work, M, values)
 
 

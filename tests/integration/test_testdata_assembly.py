@@ -114,3 +114,10 @@ def test_m07(result):
             (res / "m07_redundancy" / "redundancy.tsv").read_text().splitlines()[1:]]
     assert {r[0]: r[2] for r in rows} == exp["m07"]["classes"]
     assert row["m07_n_duplicate"] == "1"
+
+
+def test_report(result):
+    *_, res = result
+    html = (res / "report.html").read_text()
+    assert "Telomere karyoplot" in html and "Unplaced bp per class" in html
+    assert ("Cumulative contig length" in html) == HAS_QUAST
