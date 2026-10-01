@@ -26,7 +26,7 @@ EXIT_OK, EXIT_INVALID, EXIT_MODULE_FAILED = 0, 1, 2
 # Top-level entries the workflow creates in the workdir. Cleanup removes only
 # these, so a --workdir that holds other files is never wiped.
 WORK_ENTRIES = ("config.yaml", "chromosome_map.json", "prep", "scan", "map", "meryl",
-                "benchmarks", "tmp", ".snakemake", *(f"m{n:02d}" for n in range(1, 12)))
+                "benchmarks", "tmp", ".cache", ".snakemake", *(f"m{n:02d}" for n in range(1, 12)))
 
 
 def asmqc_home() -> Path:
@@ -145,7 +145,21 @@ def run_snakemake(opts: RunOptions, config: Path) -> int:
            "--resources", f"mem_mb={opts.mem_gb * 1024}",
            "--rerun-incomplete", "--keep-going", "--printshellcmds"]
     with (logs / "snakemake.log").open("a") as log:
-        return subprocess.run(cmd, stdout=log, stderr=subprocess.STDOUT, check=False).returncode
+        return subprocess.run(cmd, stdout=log, stderr=subprocess.STDOUT, check=False,
+                              env=os.environ | work_env(opts.work.absolute())).returncode
+
+
+def work_env(work: Path) -> dict[str, str]:
+    """Caches and temporary files under the workdir, never $HOME or /tmp (SPEC §5.2).
+
+    $HOME can be read-only (image %test, some cluster nodes); Snakemake's
+    source cache and matplotlib would otherwise write there.
+    """
+    cache, tmp = work / ".cache", work / "tmp"
+    cache.mkdir(parents=True, exist_ok=True)
+    tmp.mkdir(parents=True, exist_ok=True)
+    return {"XDG_CACHE_HOME": str(cache), "MPLCONFIGDIR": str(cache / "matplotlib"),
+            "TMPDIR": str(tmp)}
 
 
 def run(opts: RunOptions, command_line: str) -> int:
@@ -170,6 +184,7 @@ def run(opts: RunOptions, command_line: str) -> int:
 
     opts.result_dir.mkdir(parents=True, exist_ok=True)
     config = write_config(opts, plan)
+    os.environ.update(work_env(opts.work.absolute()))  # also for the report (matplotlib)
     t0 = time.monotonic()
     rc = run_snakemake(opts, config)
     work = opts.work.absolute()
