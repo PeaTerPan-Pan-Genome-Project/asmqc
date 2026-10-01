@@ -33,3 +33,13 @@ def testdata_noreads(fake_refs, tmp_path_factory) -> Path:
     out = tmp_path_factory.mktemp("testdata")
     make_testdata.main([str(out), "--refs", str(fake_refs), "--no-reads"])
     return out
+
+
+@pytest.fixture(scope="session")
+def testdata_reads(fake_refs, tmp_path_factory) -> Path:
+    """Synthetic data set with 25x paired reads and 15x HiFi reads."""
+    import make_testdata
+
+    out = tmp_path_factory.mktemp("testdata_reads")
+    make_testdata.main([str(out), "--refs", str(fake_refs), "--hifi-coverage", "15"])
+    return out

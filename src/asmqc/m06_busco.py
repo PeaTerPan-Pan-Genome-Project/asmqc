@@ -53,6 +53,17 @@ def check_summary(s: dict) -> list[str]:
     return problems
 
 
+def without_paths(s: dict) -> dict:
+    """short_summary with path parameters reduced to their last component.
+
+    The result directory is shared with the consortium; local paths stay out
+    (SPEC §7.3).
+    """
+    params = {k: Path(v).name if isinstance(v, str) and v.startswith("/") else v
+              for k, v in s["parameters"].items()}
+    return s | {"parameters": params}
+
+
 def read_full_table(path: Path) -> list[dict]:
     cols = ["busco_id", "status", "sequence", "start", "end", "strand", "score", "length"]
     rows = []
@@ -109,7 +120,7 @@ def summarise(busco_dir: Path, outdir: Path, work: Path) -> None:
         "m06_lineage": f"{lineage} {P['lineage_date']}",
     }
     outdir.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(summary_json, outdir / "short_summary.json")
+    (outdir / "short_summary.json").write_text(json.dumps(without_paths(s), indent=4) + "\n")
     shutil.copyfile(full_table, outdir / "full_table.tsv")
     module.write_tsv(outdir / "busco_derived.tsv",
                      ["busco_id", "status", "n_copies", "n_on_chromosomes", "n_on_unplaced",

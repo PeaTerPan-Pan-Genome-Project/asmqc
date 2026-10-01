@@ -167,7 +167,7 @@ The read type actually used is recorded in each module's output.
 
 | Environment | Pinned contents |
 |---|---|
-| `/opt/envs/core` | python 3.12, snakemake 9.27.0, pandas, matplotlib, jinja2, seqkit 2.14.0, samtools 1.24, bcftools 1.24, bedtools 2.31.1, mm2plus 1.3, blast 2.17.0, tidk 0.2.65 |
+| `/opt/envs/core` | python 3.12, snakemake 9.27.0, pandas, matplotlib, jinja2, seqkit 2.14.0, samtools 1.24, bcftools 1.24, bedtools 2.31.1, mm2plus 1.3, blast 2.17.0, tidk 0.2.65, gawk 5.4.1 |
 | `/opt/envs/quast` | quast 5.3.0 |
 | `/opt/envs/busco` | busco 6.1.0, miniprot 0.18 (plus BUSCO's dependencies) |
 | `/opt/envs/merqury` | merqury 1.4.1, meryl 1.4.2 (plus R as packaged) |
@@ -932,6 +932,7 @@ The concrete data and expected values are kept privately by the maintainers.
 | 2026-10-01 | Python code as package `src/asmqc/`; thin Snakemake rules; `envs/dev.yaml` + pytest for development outside the image. Build order in `IMPLEMENTATION_PLAN.md` |
 | 2026-10-01 | CRAQ version taken from `conda-meta` (its own output reports `1.0.9-alpha`) |
 | 2026-10-01 | BUSCO runs with `--opt-out-run-stats` (no network at run time) |
+| 2026-10-01 | gawk 5.4.1 in `core`: M11 callable regions from `samtools depth -a` need a C-speed filter |
 
 ## 13. Open points (to the maintainers before deciding)
 

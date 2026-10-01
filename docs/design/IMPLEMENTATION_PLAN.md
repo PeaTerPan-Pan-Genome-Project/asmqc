@@ -204,3 +204,32 @@ M4 `karyoplot.png`: `src/asmqc/karyoplot.py`, adapted from the vendored
 `telomere_karyoplot.py` (§6, origin and changes in its header). Bands are
 coloured by status (status palette, each colour with a legend label); absent
 arms carry a marker.
+
+Milestone 7 (2026-10-01). Shared `map_<readtype>` (`asmqc.mapping`: one
+mm2plus run per file or R1/R2 pair with its own read group, sort, merge,
+index) and `meryl_reads`; M8, M11, M9. Full run with Illumina 25× and HiFi
+25× on the synthetic data: 75 s, all nine modules `ok`; M11 recovers 30/30
+HP and 5/5 STR2 errors with correct direction and size and no other hom-alt
+call. The test generator gained `--hifi-coverage` (development only; the
+§11.1 data set is unchanged).
+- `gawk` 5.4.1 added to `core`/`dev`: the callable BED is
+  `samtools depth -a | gawk` per sequence in parallel (Python is too slow
+  for per-base depth on 4 Gb). The median depth samples `samtools depth -a -b`
+  at 1-kb positions over chr1–chr7.
+- §13.2 (CRAQ 1.10 format), from a run on BAM input: results under
+  `output/runAQI_out/`; `out_final.Report` has a `Genome` row and one row per
+  sequence with `Covered.Rate`, `Low-confident.Rate`, `Avg.CRH`, `Avg.CSH`,
+  `Avg.CRE(R-AQI)`, `Avg.CSE(S-AQI)`; CRE/CSE beds in
+  `locER_out/out_final.CRE.bed` and `strER_out/out_final.CSE.bed`. CRAQ refuses
+  an existing `output/`, so the rule declares a sentinel and clears it first.
+  **There is no single AQI column**: `m09_aqi` is `NA` until the maintainers
+  define it. CRAQ also reports CREs at sequence ends and at AGP gaps.
+- `hom_calls.vcf.gz` holds the hom-alt error calls with `DP` only; header
+  lines carrying local paths (`##reference=`, `##bcftools*`) are dropped.
+  BUSCO's `short_summary.json` path parameters are reduced to their last
+  component. Both files are part of the shared result.
+- M8 on the synthetic data: k-mer peak at 20×, exactly the `low_coverage`
+  threshold (not raised). The smoke test has no margin there.
+**[default]**: M11 counts het calls at QUAL ≥ 30 like errors; `errors.bed.gz`
+`change` is `+2A`/`-1T` for HP and `+2`/`-4` (bp) for STR2;
+`m11_hp_ins_del_ratio` is `NA` without deletions.

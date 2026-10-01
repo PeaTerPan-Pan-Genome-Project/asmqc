@@ -34,6 +34,11 @@ def runs(module):
 
 include: "rules/prep.smk"
 
+
+if config["read_types"]:
+
+    include: "rules/reads.smk"
+
 # Modules without a rule file yet are not requested; the wrapper reports
 # them as failed.
 IMPLEMENTED = [m for m in PLAN if runs(m) and (RULES / f"{m}.smk").exists()]

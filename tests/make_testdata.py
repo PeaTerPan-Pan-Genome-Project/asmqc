@@ -2,12 +2,14 @@
 """Generate the synthetic smoke-test data set (SPEC §11.1).
 
 Usage: make_testdata.py OUTDIR [--refs DIR] [--seed N] [--coverage X] [--no-reads]
+                        [--hifi-coverage X]
 
 Writes to OUTDIR:
   asm.fa              assembly: chr1-chr7 plus unplaced sequences
   asm.agp             matching AGP 2.0
   reads_R1.fq.gz      simulated paired reads from the "true" genome
   reads_R2.fq.gz
+  reads_hifi.fq.gz    only with --hifi-coverage > 0 (development; not in §11.1)
   expected.json       the truth the smoke test asserts against
 
 The true genome differs from the assembly by planted errors: 30 homopolymer
@@ -32,6 +34,7 @@ READ_LEN = 150
 FRAG_MEAN, FRAG_SD = 400, 30
 SUB_RATE = 0.001
 QUAL = "F" * READ_LEN  # Q37
+HIFI_MEAN, HIFI_SD = 15_000, 3_000
 TELO_FWD = "TTTAGGG"  # end arm, 5'->3' towards the chromosome end
 TELO_REV = "CCCTAAA"  # start arm
 COMP = str.maketrans("ACGTacgtN", "TGCAtgcaN")
@@ -391,6 +394,24 @@ def simulate_reads(rng: random.Random, true: dict[str, str], coverage: float,
     return n_pairs
 
 
+def simulate_hifi(rng: random.Random, true: dict[str, str], coverage: float,
+                  path: Path) -> int:
+    """Long accurate reads, ~15 kb, 0.1 % substitutions, both strands."""
+    seqs = {n: s.upper() for n, s in true.items() if len(s) >= 2 * HIFI_MEAN}
+    n_reads = 0
+    with gzip.GzipFile(path, "wb", mtime=0) as gz:
+        for seq in seqs.values():
+            for _ in range(round(coverage * len(seq) / HIFI_MEAN)):
+                length = max(5_000, round(rng.gauss(HIFI_MEAN, HIFI_SD)))
+                start = rng.randrange(0, len(seq) - length + 1)
+                r = seq[start:start + length]
+                if rng.random() < 0.5:
+                    r = r.translate(COMP)[::-1]
+                n_reads += 1
+                gz.write(f"@h{n_reads}\n{mutate(rng, r)}\n+\n{'F' * len(r)}\n".encode())
+    return n_reads
+
+
 def mutate(rng: random.Random, read: str) -> str:
     pos = int(rng.expovariate(SUB_RATE))
     if pos >= len(read):
@@ -409,6 +430,7 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--coverage", type=float, default=25.0)
     ap.add_argument("--no-reads", action="store_true")
+    ap.add_argument("--hifi-coverage", type=float, default=0.0)
     args = ap.parse_args(argv)
 
     g = Generator(args.refs, args.seed)
@@ -475,6 +497,11 @@ def main(argv: list[str] | None = None) -> None:
         expected["read_pairs"] = simulate_reads(
             rng, true, args.coverage,
             args.outdir / "reads_R1.fq.gz", args.outdir / "reads_R2.fq.gz")
+    if args.hifi_coverage > 0:
+        expected["hifi_coverage"] = args.hifi_coverage
+        expected["hifi_reads"] = simulate_hifi(random.Random(args.seed + 2), true,
+                                               args.hifi_coverage,
+                                               args.outdir / "reads_hifi.fq.gz")
     (args.outdir / "expected.json").write_text(json.dumps(expected, indent=1) + "\n")
 
 
