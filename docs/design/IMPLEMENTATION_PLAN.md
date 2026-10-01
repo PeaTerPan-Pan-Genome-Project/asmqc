@@ -276,3 +276,9 @@ package, the pulled-back SIF has the same sha256. The `asmqc-canary` package
 must be deleted by a user with the `delete:packages` scope.
 `release.yml` builds as root, verifies the pushed image by pulling it back,
 and marks a/b/rc/dev versions as pre-releases; first test with `v0.1.0rc1`.
+Release run 36897267740 for `v0.1.0rc1` passed in 13 min 51 s: build as
+root, `asmqc test` passed on the runner, image pushed to
+`oras://ghcr.io/peaterpan-pan-genome-project/asmqc/sif:0.1.0rc1`
+(sha256 `18dfbbad…9239`), pulled back and verified, pre-release created with
+the sha256 asset and the pull command. The package is private after the
+first push; anonymous pulls fail until its visibility is set to public.
