@@ -796,9 +796,12 @@ values** before v1.0.
   Validation against consortium data lives in an untracked `validation/`
   directory (listed in `.gitignore`) that takes its paths as arguments. Public
   reference data are downloaded at build time, not committed.
-- **Layout:** `Singularity`, `envs/*.yaml` + `envs/*.lock`, `workflow/`,
-  `scripts/`, `templates/`, `tests/`, `README.md` (user guide),
-  `CHANGELOG.md`, `LICENSE`.
+- **Layout:** `Singularity`, `envs/*.yaml` + `envs/*.lock`, `envs/dev.yaml`
+  (development and unit tests outside the image), `pyproject.toml`,
+  `src/asmqc/` (Python package: CLI, validation, parsers, classifiers,
+  summary writer), `workflow/` (Snakemake; rules stay thin and call
+  `python -m asmqc.<module>`), `templates/`, `tests/`, `docs/design/`,
+  `README.md` (user guide), `CHANGELOG.md`, `LICENSE`.
 - **Pinning:** every conda package exactly as in §5.1, built from committed
   explicit lock files. No unpinned dependency anywhere.
 - **The def file:**
@@ -921,6 +924,7 @@ The concrete data and expected values are kept privately by the maintainers.
 | 2026-10-01 | M9: CRAQ only; ONT preset from the declared chemistry; AGP-junction cross-check |
 | 2026-10-01 | M11: bcftools; homopolymer ≥ 4 bp; dinucleotide class; error BED kept |
 | 2026-10-01 | Public repository, GPL-3.0; no unpublished data committed |
+| 2026-10-01 | Python code as package `src/asmqc/`; thin Snakemake rules; `envs/dev.yaml` + pytest for development outside the image. Build order in `IMPLEMENTATION_PLAN.md` |
 
 ## 13. Open points (to the maintainers before deciding)
 

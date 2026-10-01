@@ -4,12 +4,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-Pre-implementation. The repository holds only `SPEC.md`, the v1.0 design
-specification. There are no build, lint or test commands yet; add them here
-once they exist. `SPEC.md` is the design document: read the relevant section
-before changing anything, and stop and ask if a change diverges from it.
-Points marked **[default]** may change; §13 lists open points that go to the
-maintainers, not to be decided unilaterally.
+Pre-implementation. Design documents live in `docs/design/`:
+- `SPEC.md`: v1.0 behaviour specification. Read the relevant section before
+  changing anything; stop and ask if a change diverges from it. Points marked
+  **[default]** may change; §13 lists open points that go to the
+  maintainers, not to be decided unilaterally.
+- `IMPLEMENTATION_PLAN.md`: code layout, cross-cutting design, milestone
+  order, test strategy.
+
+## Commands (planned; update once milestone 0 lands)
+
+```
+mamba env create -f envs/dev.yaml     # dev environment
+pytest                                # all unit tests
+pytest tests/unit/test_m01.py::test_x # single test
+```
 
 ## What it is
 
@@ -18,13 +27,19 @@ pea assemblies (`chr1`–`chr7` + unplaced) for a pangenome consortium. The
 purpose is cross-group comparability: identical tools, versions, parameters,
 reference data and output schema. It measures; it never modifies an assembly.
 
-## Planned layout (SPEC §10)
+## Planned layout (SPEC §10, IMPLEMENTATION_PLAN §1)
 
-`Singularity` (def file), `envs/*.yaml` + `envs/*.lock` (explicit lock files),
-`workflow/` (Snakemake), `scripts/`, `templates/` (HTML report), `tests/`
-(incl. seeded `tests/make_testdata.py`), `README.md`, `CHANGELOG.md`, `LICENSE`
-(GPL-3.0). Untracked `validation/` (in `.gitignore`) holds runs against
-consortium data.
+- `src/asmqc/`: installable Python package with all logic (CLI, validation,
+  planning, `schema.py` column order, `flags.py`, per-module `mNN_*.py`).
+- `workflow/`: Snakemake; rules stay thin and call `python -m asmqc.mNN_*`.
+- `envs/*.yaml` + `*.lock` for the image; `envs/dev.yaml` for development.
+- `Singularity`, `templates/`, `tests/` (incl. seeded
+  `tests/make_testdata.py`), `README.md`, `CHANGELOG.md`, `LICENSE` (GPL-3.0).
+- Untracked `validation/` (in `.gitignore`) holds runs against consortium data.
+
+Module results are merged into `qc_summary.tsv` by the wrapper after
+Snakemake returns, not by a rule, so a failed module still yields a summary
+and exit code 2.
 
 ## Architecture (SPEC §5)
 

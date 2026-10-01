@@ -1,0 +1,91 @@
+# asmqc: implementation plan
+
+Build order, code layout and test strategy for v1.0. The behaviour is defined
+in [SPEC.md](SPEC.md); this document defines how and in what order it is
+built. Section references (§) point to SPEC.md.
+
+---
+
+## 1. Code layout
+
+| Path | Contents |
+|---|---|
+| `pyproject.toml` | package metadata; `asmqc` console entry point |
+| `src/asmqc/cli.py` | subcommands `run`, `version`, `aggregate`, `test` |
+| `src/asmqc/validate.py` | input validation (§4.2) |
+| `src/asmqc/plan.py` | module switching and read-type selection (§4.3); writes the Snakemake config |
+| `src/asmqc/schema.py` | ordered `qc_summary.tsv` columns with type and format (§7.2) |
+| `src/asmqc/flags.py` | flag codes and severities (§7.5) |
+| `src/asmqc/summary.py` | merges module results into `qc_summary.tsv`, `flags.tsv`, `run_manifest.json` |
+| `src/asmqc/mNN_*.py` | one module each: parsers, classifiers, `main()` called by the rule |
+| `workflow/Snakefile`, `workflow/rules/*.smk` | thin rules; shell out to tools and `python -m asmqc.mNN_*` |
+| `templates/` | Jinja2 templates for `report.html` and the combined report |
+| `envs/*.yaml`, `envs/*.lock` | image environments (§5.1) and explicit locks |
+| `envs/dev.yaml` | development environment (python, pytest, snakemake, core tools) |
+| `tests/unit/` | parser and classifier tests on small fixtures |
+| `tests/make_testdata.py` | seeded synthetic data set (§11.1) |
+
+## 2. Cross-cutting design
+
+- **Schema as code.** `schema.py` is the single source of the column order and
+  formatting: percentages 2 dp, counts integer, rates 4 significant digits,
+  enums checked. A unit test compares it with the §7.2 list.
+- **Module output contract.** Each module writes its files under
+  `<label>/mNN_*/`, plus `work/mNN/summary.json` (its own columns) and
+  `work/mNN/flags.tsv`.
+- **Merging outside Snakemake.** The wrapper merges after Snakemake returns.
+  With `--keep-going` a failed module would block a merge rule; merging in the
+  wrapper guarantees `qc_summary.tsv`, `flags.tsv`, `ena_rules` and exit code
+  2 even when a module failed (§4.4).
+- **Planning in the wrapper.** `asmqc run` validates, decides each module's
+  status (`run`, `skipped_no_input`, `skipped_by_user`) and read types, and
+  writes a Snakemake config YAML. `--dry-run` prints the plan and stops.
+- **Environment switching.** Rules prefix
+  `PATH=$ASMQC_ENV_ROOT/<env>/bin:$PATH`. `ASMQC_ENV_ROOT=/opt/envs` in the
+  image; in development every env name resolves to the dev environment.
+  `TMPDIR` is set per rule under the workdir.
+- **Pure parsers.** Parsers and classifiers take files or records and return
+  data structures, with no tool calls, so they are unit-testable. Fixtures are
+  synthetic or derived from public data only.
+- **Determinism.** Thread-order-dependent tool output is sorted before
+  parsing; no timestamps outside the manifest; fixed seeds.
+
+## 3. Milestones
+
+One branch and pull request per milestone.
+
+| # | Milestone | Content |
+|---|---|---|
+| 0 | Scaffold | `pyproject.toml`, `src/asmqc/` skeleton, `envs/dev.yaml`, `.gitignore` (`validation/`, `*.sif`, work dirs), GPL-3.0 `LICENSE`, pytest CI workflow |
+| 1 | Environments and locks | `envs/{core,quast,busco,merqury,craq}.yaml` with exact pins; `envs/make_locks.sh` writes explicit locks (`conda list --explicit --md5`). Confirms every pin resolves (§13.1) and the mm2plus binary name before code depends on them |
+| 2 | Release canary | `.github/workflows/canary.yml` per §10. Pushing and triggering require maintainer approval; outcome reported (§13.5) |
+| 3 | Synthetic test data | `tests/make_testdata.py`: assembly, AGP, Illumina reads and `expected.json` with the §11.1 truth. Built early because every module asserts against it |
+| 4 | Core runner | CLI, validation, `prep`, Snakefile with module switching, summary/flags/manifest merge, exit codes 0/1/2 |
+| 5 | M1, M2 | integrity, ENA rules, AGP check, round-number diagnostic, N-split contiguity; QUAST run and agreement check |
+| 6 | Assembly-only modules | M4 (tidk bands, arm classification, karyoplot from the vendored script), M5 (organelle PAF, rDNA copies and arrays), M7 (one-chain classification), M6 (BUSCO, lineage assertion, derived values; skipped on test data) |
+| 7 | Read-based modules | shared `map_<readtype>` and `meryl_reads`; M8 (Merqury, coverage peak); M11 (callable BED, parallel bcftools, HP/STR2 classifier); M9 (CRAQ; parser waits for §13.2) |
+| 8 | Report and aggregate | `report.html` with embedded PNGs and per-module plots; `asmqc aggregate` with header check and combined report |
+| 9 | Image and release | `Singularity` def: envs from locks, md5-verified references, `VERSION.json`, `%test` = `asmqc test`; `release.yml` on `v*` tags |
+| 10 | Validation | runs on consortium data from the untracked `validation/` directory (§11.2); measured resources replace §9; v1.0 acceptance (§11.3) |
+
+## 4. Testing
+
+- **Unit:** per-module parsers and classifiers on fixtures (`tests/unit/`).
+- **Schema:** column list against §7.2.
+- **Integration:** `asmqc run` on the synthetic data in the dev environment
+  for modules whose tools it contains.
+- **Smoke:** full `asmqc test` inside the SIF (§11.1).
+- **Determinism:** two runs on the same input give identical
+  `qc_summary.tsv`.
+
+## 5. Risks and unknowns
+
+- Pinned versions may not resolve, alone or together (§13.1). Milestone 1
+  surfaces this first.
+- CRAQ output paths and format (§13.2) and the tidk orientation convention
+  (§13.3) need real output.
+- BUSCO 6.1.0 offline with `fabales_odb12.2` (§13.7).
+- Merqury and its R dependencies inside the image.
+- `%test` must run offline, on < 20 MB of data, in acceptable build time.
+- Read simulation for the test data: a seeded, pinned simulator or a small
+  Python implementation.
