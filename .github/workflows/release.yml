@@ -38,8 +38,9 @@ jobs:
         with:
           apptainer-version: 1.4.5
 
+      # Ubuntu 24.04 restricts unprivileged user namespaces; build as root
       - name: Build image (runs asmqc test)
-        run: ./build.sh
+        run: APPTAINER="sudo apptainer" ./build.sh
 
       - name: Push to ghcr.io
         env:
@@ -49,6 +50,15 @@ jobs:
             --username "${{ github.actor }}" --password-stdin oras://ghcr.io
           apptainer push "asmqc_${VERSION}.sif" \
             "oras://ghcr.io/peaterpan-pan-genome-project/asmqc/sif:${VERSION}"
+
+      - name: Pull back and verify sha256
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          mkdir back
+          apptainer pull "back/asmqc_${VERSION}.sif" \
+            "oras://ghcr.io/peaterpan-pan-genome-project/asmqc/sif:${VERSION}"
+          (cd back && sha256sum -c "../asmqc_${VERSION}.sif.sha256")
 
       # GitHub release assets are limited to 2 GiB; the image is larger, so the
       # SIF is attached only if it fits (SPEC §13.9). ghcr.io always has it.
@@ -65,5 +75,7 @@ jobs:
             echo
             cat CHANGELOG.md
           } > notes.md
-          gh release create "${GITHUB_REF_NAME}" "${assets[@]}" \
+          pre=()
+          if [[ "$VERSION" =~ (a|b|rc|dev)[0-9]*$ ]]; then pre=(--prerelease); fi
+          gh release create "${GITHUB_REF_NAME}" "${assets[@]}" "${pre[@]}" \
             --title "asmqc ${VERSION}" --notes-file notes.md

@@ -4,7 +4,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions
 follow semantic versioning; results are comparable only within one
 `MAJOR.MINOR` version.
 
-## [Unreleased]
+## [0.1.0rc1] - 2026-10-01
+
+Release candidate to test the release path. Not validated on real
+assemblies (SPEC §11.2); results are not for comparison.
 
 ### Added
 

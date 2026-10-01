@@ -1,0 +1,44 @@
+name: canary
+
+# Release-path canary (SPEC §10): builds a ~5 MB SIF, pushes it to ghcr.io
+# with ORAS using GITHUB_TOKEN, pulls it back and compares the sha256. A
+# failure here is usually an organisation setting (allowed actions, package
+# creation). On success, delete the asmqc-canary package by hand.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REF: ghcr.io/peaterpan-pan-genome-project/asmqc-canary:test
+
+jobs:
+  canary:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: eWaterCycle/setup-apptainer@v2
+        with:
+          apptainer-version: 1.4.5
+
+      - uses: oras-project/setup-oras@v1
+
+      - name: Build test SIF
+        run: |
+          printf 'Bootstrap: docker\nFrom: alpine:3.22\n\n%%post\n    echo asmqc-canary > /canary\n' > canary.def
+          sudo apptainer build canary.sif canary.def
+          sha256sum canary.sif | tee canary.sha256
+
+      - name: Push to ghcr.io
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | oras login ghcr.io -u "${{ github.actor }}" --password-stdin
+          oras push "$REF" canary.sif:application/vnd.sylabs.sif.layer.v1.sif
+
+      - name: Pull back and compare
+        run: |
+          mkdir back
+          oras pull "$REF" -o back
+          (cd back && sha256sum -c ../canary.sha256)
+          apptainer exec back/canary.sif cat /canary

@@ -4,6 +4,7 @@
 # runs `asmqc test`. Extra arguments go to apptainer build (e.g. --fakeroot).
 #
 # Usage: ./build.sh [apptainer build options]
+# APPTAINER="sudo apptainer" ./build.sh  where unprivileged builds are not allowed
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -22,5 +23,5 @@ pathlib.Path("VERSION.json").write_text(json.dumps(
     {"version": version, "git_commit": commit, "lockfile_sha256": locks}, indent=1) + "\n")
 EOF
 
-apptainer build "$@" "asmqc_${version}.sif" Singularity
+${APPTAINER:-apptainer} build "$@" "asmqc_${version}.sif" Singularity
 sha256sum "asmqc_${version}.sif" | tee "asmqc_${version}.sif.sha256"
