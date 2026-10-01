@@ -23,6 +23,18 @@ pytest                                             # all tests
 pytest tests/unit/test_cli.py::test_version_exits_zero   # single test
 ```
 
+Environment variables:
+- `ASMQC_ENV_ROOT`: root of the tool envs (`/opt/envs` in the image). Unset,
+  all tools come from the current env. Locally, the image envs built from the
+  locks live in `/mnt/ssd/asmqc_locktmp` (QUAST, BUSCO, Merqury, CRAQ are not
+  in the dev env).
+- `ASMQC_HOME`: install root with `workflow/`, `envs/`, `refs/`
+  (`/opt/asmqc`); defaults to the repository root.
+
+Test data: `python tests/make_testdata.py OUT --refs .refs` (references via
+`refs/fetch_refs.py .refs`; the agent sandbox cannot resolve NCBI/GitHub, so
+the user fetches).
+
 Every new dependency is pinned in `envs/dev.yaml` (and the matching image
 env); `pyproject.toml` declares none. snakemake 9.27.0 requires pandas < 3.
 

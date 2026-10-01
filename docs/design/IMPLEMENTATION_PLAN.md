@@ -127,8 +127,31 @@ Milestone 3 (2026-10-01). `tests/make_testdata.py` writes `asm.fa`,
   with random stand-in references: 30/30 HP and 5/5 STR2 errors recovered as
   hom-alt, no other hom-alt calls.
 
-Pending with the real references (`refs/fetch_refs.py` cannot reach NCBI or
-GitHub from the agent sandbox): BLAST of the rDNA library against the plastid
-segments (cp rRNA genes must not create extra rDNA copies) and mm2plus of the
-mito genome against the plastid segments (plastid-derived mito DNA would add
-mito-like bp).
+With the real references (md5s match §6): BLAST of the rDNA library finds
+only the planted arrays (merged copies: chr4 3 × 18S/5.8S/25S, chr1 10 × 5S);
+the plastid segments give no rDNA hits; mm2plus finds the plastid segments at
+identity 1.0 and no mito hits.
+
+Milestone 4 (2026-10-01). Core runner in `cli.py`, `validate.py`, `plan.py`,
+`runner.py`, `summary.py`, `schema.py`, `flags.py`, `params.py`, `tools.py`,
+`prep.py`, `workflow/Snakefile`, `workflow/rules/prep.smk`. Points the spec
+leaves open, settled as **[default]**:
+- Number format `dec2` (2 decimals) for values that are neither percentages,
+  counts nor rates: `m08_kmer_coverage`, `m08_qv`, `m09_coverage`, `m09_aqi`,
+  `m09_r_aqi`, `m09_s_aqi`.
+- `ena_rules` is `NA` when M1 did not finish; PASS would be unfounded.
+- `run_date` differs between runs, so the determinism check (§5.3) compares
+  every column except `run_date`.
+- Manifest `inputs.assembly.md5` is the decompressed md5 (= `assembly_md5`);
+  `bytes` is the size of the file as given.
+- `command_line` in the manifest reduces path arguments to file names, like
+  `inputs` (§7.3); `--manifest-full-paths` keeps them.
+- Manifest extras: `snakemake_exit_code`, `wall_seconds.total`.
+- Cleanup removes only the entries the workflow creates in the workdir, never
+  a user-supplied `--workdir` wholesale.
+- A module decides `skipped_no_input` itself when it depends on assembly
+  content (M7: no unplaced ≥ 1 kb), via `status` in its `summary.json`.
+- A planned module without a rule file (not yet implemented) ends as
+  `failed`; the run exits 2.
+- Tool versions run each tool with its env's `bin/` first on PATH: scripts
+  such as `busco` use `#!/usr/bin/env python`.

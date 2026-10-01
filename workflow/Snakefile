@@ -1,0 +1,47 @@
+# asmqc workflow (SPEC §5.2). Called by `asmqc run` with --directory <workdir>
+# and a config written by asmqc.runner.write_config; not meant to be run by hand.
+#
+# Each module NN lives in rules/mNN.smk and must produce <work>/mNN/summary.json
+# (and optionally flags.tsv); the wrapper merges them after Snakemake returns.
+
+from pathlib import Path
+
+from asmqc import tools
+
+W = Path(config["work"])
+R = Path(config["result_dir"])
+PY = config["python"]
+PLAN = config["plan"]
+RULES = Path(workflow.basedir) / "rules"
+
+
+def env(name, rule):
+    """Shell preamble: tool env on PATH, TMPDIR under the workdir (never /tmp)."""
+    return tools.shell_prefix(name, str(W / "tmp" / rule))
+
+
+def log(rule):
+    return str(R / "logs" / f"{rule}.log")
+
+
+def bench(key, rule):
+    return str(W / "benchmarks" / f"{key}.{rule}.tsv")
+
+
+def runs(module):
+    return PLAN[module]["status"] == "run"
+
+
+include: "rules/prep.smk"
+
+# Modules without a rule file yet are not requested; the wrapper reports
+# them as failed.
+IMPLEMENTED = [m for m in PLAN if runs(m) and (RULES / f"{m}.smk").exists()]
+for _m in IMPLEMENTED:
+    include: str(RULES / f"{_m}.smk")
+
+
+rule all:
+    input:
+        W / "prep" / "asm.fa.fai",
+        [W / m / "summary.json" for m in IMPLEMENTED],
