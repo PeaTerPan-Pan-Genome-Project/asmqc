@@ -12,13 +12,19 @@ Pre-implementation. Design documents live in `docs/design/`:
 - `IMPLEMENTATION_PLAN.md`: code layout, cross-cutting design, milestone
   order, test strategy.
 
-## Commands (planned; update once milestone 0 lands)
+## Commands
 
 ```
-mamba env create -f envs/dev.yaml     # dev environment
-pytest                                # all unit tests
-pytest tests/unit/test_m01.py::test_x # single test
+mamba env create -f envs/dev.yaml                  # env "asmqc-dev"
+mamba activate asmqc-dev
+pip install --no-deps --no-build-isolation -e .   # package itself; deps come from the env
+ruff check src tests                               # lint
+pytest                                             # all tests
+pytest tests/unit/test_cli.py::test_version_exits_zero   # single test
 ```
+
+Every new dependency is pinned in `envs/dev.yaml` (and the matching image
+env); `pyproject.toml` declares none. snakemake 9.27.0 requires pandas < 3.
 
 ## What it is
 

@@ -1,0 +1,16 @@
+# Validation against consortium data: never committed (SPEC §10)
+validation/
+
+# Images and run outputs
+*.sif
+results/
+work/
+.snakemake/
+
+# Python
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
