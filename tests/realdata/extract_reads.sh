@@ -42,11 +42,27 @@ if [[ ! -s $IDX ]]; then
     tool mm2plus -x "$PRESET" -I 16G -t "$THREADS" -d "$IDX" "$ASM"
 fi
 
+# ENA's file report sometimes answers with an error text instead of a table;
+# retry until the line is "<RUN><TAB>urls<TAB>md5s".
+ena_files() {
+    local run=$1 line i
+    for i in 1 2 3 4 5 6; do
+        line=$(curl -sf "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=$run&result=read_run&fields=fastq_ftp,fastq_md5&format=tsv" | tail -n 1) || true
+        if [[ $line == "$run"$'\t'* && $(cut -f2 <<<"$line") == *fastq* ]]; then
+            printf '%s\n' "$line"; return 0
+        fi
+        echo "$run: ENA file report not usable (attempt $i), retrying" >&2
+        sleep $((i * 20))
+    done
+    echo "$run: no usable ENA file report" >&2
+    return 1
+}
+
 for RUN in "$@"; do
     if [[ -s "$OUT/$RUN.subset.fq.gz" || -s "$OUT/${RUN}_2.subset.fq.gz" ]]; then
         echo "$RUN: done before, skipped"; continue
     fi
-    meta=$(curl -sf "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=$RUN&result=read_run&fields=fastq_ftp,fastq_md5&format=tsv" | tail -n 1)
+    meta=$(ena_files "$RUN")
     IFS=';' read -r -a urls <<<"$(cut -f2 <<<"$meta")"
     IFS=';' read -r -a md5s <<<"$(cut -f3 <<<"$meta")"
     [[ ${#urls[@]} -gt 0 && -n ${urls[0]} ]] || { echo "$RUN: no FASTQ at ENA" >&2; exit 1; }

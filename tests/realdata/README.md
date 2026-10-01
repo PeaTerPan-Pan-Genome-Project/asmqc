@@ -75,9 +75,14 @@ qsub -v READS=ont      cameor_reads.pbs
   runs are ERR9980778–ERR9980797.
 
 Results: `reads_<type>/subset.fq.gz` (Illumina: `subset_R1.fq.gz`,
-`subset_R2.fq.gz`) and `subset.stats.tsv`. The job
-requests 32 CPUs, 96 GB and 200 GB scratch for 48 h; these are first
-estimates.
+`subset_R2.fq.gz`) and `subset.stats.tsv`. The job requests 32 CPUs, 48 GB
+and 200 GB scratch for 48 h.
+
+Measured on one small run of each type (14 threads): the full-genome index
+takes 1 min and 18 GB; mapping costs about 90 CPU-min per Gb of Illumina and
+about 330 CPU-min per Gb of ONT. On 32 cores that is about 6 h for the
+Illumina and HiFi selections and about 22 h for ONT, plus downloads. About
+0.15× of each run's reads end up in the fixture.
 
 ## Using the fixture
 

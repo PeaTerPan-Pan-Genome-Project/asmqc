@@ -1,6 +1,6 @@
 #!/bin/bash
 #PBS -N asmqc_cameor_reads
-#PBS -l select=1:ncpus=32:mem=96gb:scratch_local=200gb
+#PBS -l select=1:ncpus=32:mem=48gb:scratch_local=200gb
 #PBS -l walltime=48:00:00
 #PBS -j oe
 #
@@ -13,7 +13,9 @@
 #   qsub -v READS=ont      cameor_reads.pbs
 #
 # Results go to $PBS_O_WORKDIR/reads_<READS>/. A rerun skips finished runs.
-# Resources are first estimates; tighten after one run (peak RSS x 1.3).
+# Measured on 0.8 Gb test runs (mm2plus peak RSS 18 GB): expect ~6 h for
+# illumina and hifi, ~22 h for ont on 32 cores, plus downloads. For ont, add
+# -l walltime=72:00:00 to qsub if downloads are slow.
 
 set -euo pipefail
 READS=${READS:?qsub -v READS=illumina|hifi|ont}
