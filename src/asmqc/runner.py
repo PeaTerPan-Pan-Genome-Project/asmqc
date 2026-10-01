@@ -163,7 +163,8 @@ def run(opts: RunOptions, command_line: str) -> int:
     for w in warnings:
         print(f"asmqc: warning: {w}", file=sys.stderr)
 
-    print(f"asmqc {__version__}: {opts.label}\n{planner.describe(plan)}", file=sys.stderr)
+    print(f"asmqc {build_info()['version']}: {opts.label}\n{planner.describe(plan)}",
+          file=sys.stderr)
     if opts.dry_run:
         return EXIT_OK
 

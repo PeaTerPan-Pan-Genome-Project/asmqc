@@ -13,11 +13,6 @@ def _paths(text: str) -> list[Path]:
     return [Path(p) for p in text.split(",") if p]
 
 
-def _not_implemented(args: argparse.Namespace) -> int:
-    print(f"asmqc {args.command}: not implemented yet", file=sys.stderr)
-    return 3
-
-
 def _version(args: argparse.Namespace) -> int:
     info = runner.build_info()
     out = {
@@ -29,6 +24,12 @@ def _version(args: argparse.Namespace) -> int:
     }
     print(json.dumps(out, indent=2))
     return 0
+
+
+def _test(args: argparse.Namespace) -> int:
+    from asmqc import smoketest
+
+    return smoketest.run(args.dir, args.threads or smoketest.default_threads())
 
 
 def _aggregate(args: argparse.Namespace) -> int:
@@ -87,8 +88,10 @@ def build_parser() -> argparse.ArgumentParser:
     a.add_argument("dirs", type=Path, nargs="+", metavar="DIR", help="<outdir>/<label>/ dirs")
     a.add_argument("--out", type=Path, required=True)
     a.set_defaults(func=_aggregate)
-    sub.add_parser("test", help="run the built-in smoke test").set_defaults(
-        func=_not_implemented)
+    t = sub.add_parser("test", help="run the built-in smoke test (SPEC §11.1)")
+    t.add_argument("--dir", type=Path, help="parent for the temporary test directory")
+    t.add_argument("--threads", type=int)
+    t.set_defaults(func=_test)
     return parser
 
 
