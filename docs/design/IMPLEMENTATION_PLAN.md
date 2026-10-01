@@ -286,3 +286,25 @@ Public packages had to be enabled at organisation level (Settings →
 Packages → Package creation) before `asmqc/sif` could be made public. After
 that (2026-10-01) an anonymous `apptainer pull` takes 2.5 min, the sha256
 matches the release asset, and the pulled image passes `asmqc test` offline.
+
+Real data, Cameor v2 (GCA_977071245.1), 2026-10-01. Full assembly (3.9 Gb),
+modules 1, 4, 5, 7 with the `0.1.0rc1` image: 9 min on 14 threads (scan 2.2
+min, M5 2.2 min, M7 4.1 min); ENA PASS. Findings:
+- **Bug, fixed**: BUSCO 6.1.0 `full_table.tsv` has 10 columns for found
+  BUSCOs (`OrthoDB url`, `Description`) and 2 for missing ones; the parser
+  assumed 8 and M6 failed. The synthetic data have no genes, so only Missing
+  rows were ever seen. The parser now takes column names from the
+  `# Busco id` line. `0.1.0rc1` has the bug.
+- **M5 rDNA, open**: every BLAST hit counts as a copy, so dispersed subunit
+  fragments make "arrays" on all chromosomes; `m05_rdna45s_loci` and
+  `m05_rdna5s_loci` list every chromosome. 22 45S "arrays" contain no 18S
+  copy. Real arrays stand out: 45S on chr4 (16 copies) and chr7 (11), 5S on
+  chr1 (403), chr3 (127), chr2 (45). A minimum hit length per copy and a
+  minimum copy number per array are needed; to be decided.
+- M4: 8 of 14 arms capped, 2 T2T; 17 of 19 interstitial arrays form one
+  cluster on chr4 at 74.0-75.3 Mb.
+Real-data fixture (`tests/realdata/`): ~50 Mb cut from Cameor v2 with
+`make_cameor_fixture.py` (arrays with >= 10 copies, block ends moved off
+1-kb multiples so no round AGP cut is an artefact of the fixture). Modules
+1, 2, 4, 5, 6, 7 on it: 4.3 min (BUSCO 4 min), all ok; BUSCO C 3.1 %,
+internal stops 4.2 %.

@@ -116,6 +116,25 @@ def test_m06_derived():
     assert table[3] == ("b4", "Duplicated", 2, 1, 1, "chr1;u2")
 
 
+def test_m06_full_table_busco6(tmp_path):
+    """BUSCO 6.1.0 layout: 10 columns for found BUSCOs, 2 for missing."""
+    p = tmp_path / "full_table.tsv"
+    p.write_text(
+        "# BUSCO version is: 6.1.0 \n"
+        "# Busco id\tStatus\tSequence\tGene Start\tGene End\tStrand\tScore\tLength"
+        "\tOrthoDB url\tDescription\n"
+        "267at72025\tComplete\tchr3\t829659\t830284\t+\t270.3\t132"
+        "\thttps://v12-2.orthodb.org/?query=267at72025\tGSH-induced LITAF domain protein\n"
+        "5at72025\tDuplicated\tchr1\t10\t900\t-\t500.0\t300\turl\tdesc\n"
+        "5at72025\tDuplicated\tu7\t10\t900\t-\t500.0\t300\turl\tdesc\n"
+        "27at72025\tMissing\n")
+    rows = m06.read_full_table(p)
+    assert [r["status"] for r in rows] == ["Complete", "Duplicated", "Duplicated", "Missing"]
+    counts, _ = m06.derived(rows)
+    assert counts == {"m06_complete_on_unplaced": 1, "m06_dup_both_on_chrom": 0,
+                      "m06_dup_any_on_unplaced": 1}
+
+
 def test_m06_lineage_checks(tmp_path):
     (tmp_path / "dataset.cfg").write_text(
         "name=fabales_odb12.2\ncreation_date=2026-05-13\nnumber_of_BUSCOs=7702\n")

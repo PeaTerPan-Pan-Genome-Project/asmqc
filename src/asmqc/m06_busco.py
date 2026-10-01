@@ -65,14 +65,26 @@ def without_paths(s: dict) -> dict:
 
 
 def read_full_table(path: Path) -> list[dict]:
-    cols = ["busco_id", "status", "sequence", "start", "end", "strand", "score", "length"]
+    """Rows of full_table.tsv keyed busco_id, status, sequence (plus the rest).
+
+    BUSCO 6.1.0 writes 10 columns for found BUSCOs (incl. OrthoDB url and
+    description) and 2 for missing ones; column names come from the
+    "# Busco id" header line.
+    """
+    keys = {"Busco id": "busco_id", "Status": "status", "Sequence": "sequence"}
+    cols: list[str] = []
     rows = []
     with path.open() as fh:
         for line in fh:
+            if line.startswith("# Busco id"):
+                cols = [keys.get(c, c) for c in line[2:].rstrip("\n").split("\t")]
+                continue
             if line.startswith("#") or not line.strip():
                 continue
+            if not cols:
+                raise ValueError(f"{path}: no '# Busco id' header line")
             f = line.rstrip("\n").split("\t")
-            rows.append(dict(zip(cols, f + [""] * (len(cols) - len(f)), strict=True)))
+            rows.append(dict(zip(cols, f + [""] * (len(cols) - len(f)))))
     return rows
 
 

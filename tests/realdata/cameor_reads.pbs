@@ -1,0 +1,45 @@
+#!/bin/bash
+#PBS -N asmqc_cameor_reads
+#PBS -l select=1:ncpus=32:mem=96gb:scratch_local=200gb
+#PBS -l walltime=48:00:00
+#PBS -j oe
+#
+# MetaCentrum job: extract the Cameor v2 fixture reads (tests/realdata/README.md).
+# Submit from a directory holding asmqc.sif, the uncompressed full assembly
+# (FULL.fa) and the fixture's regions.bed:
+#
+#   qsub -v READS=illumina cameor_reads.pbs
+#   qsub -v READS=hifi     cameor_reads.pbs
+#   qsub -v READS=ont      cameor_reads.pbs
+#
+# Results go to $PBS_O_WORKDIR/reads_<READS>/. A rerun skips finished runs.
+# Resources are first estimates; tighten after one run (peak RSS x 1.3).
+
+set -euo pipefail
+READS=${READS:?qsub -v READS=illumina|hifi|ont}
+
+case $READS in
+    # Cameor v1 project PRJEB30482 (same genotype): three 2x150 bp PE runs,
+    # 365-477 bp inserts, ~120 Gb (~31x); the fourth is ERR3014764
+    illumina) PRESET=sr
+          RUNS="ERR3014756 ERR3014760 ERR3014765" ;;
+    hifi) PRESET=map-hifi
+          RUNS="ERR9972527 ERR9972528 ERR9972529 ERR9972530" ;;    # 73.1 Gb, ~19x
+    # Six largest ONT runs, ~130 Gb (~33x); all 20 runs are ERR9980778-ERR9980797
+    ont)  PRESET=map-ont
+          RUNS="ERR9980780 ERR9980790 ERR9980792 ERR9980791 ERR9980797 ERR9980793" ;;
+    *) echo "READS must be illumina, hifi or ont" >&2; exit 1 ;;
+esac
+
+OUT="$PBS_O_WORKDIR/reads_$READS"
+mkdir -p "$OUT"
+trap 'cp "$SCRATCHDIR"/out/ERR*subset.fq.gz "$SCRATCHDIR"/out/subset* "$OUT"/ 2>/dev/null; clean_scratch' EXIT TERM
+
+module add singularity 2>/dev/null || true
+cd "$SCRATCHDIR"
+cp "$PBS_O_WORKDIR"/asmqc.sif "$PBS_O_WORKDIR"/FULL.fa "$PBS_O_WORKDIR"/regions.bed .
+mkdir -p out
+cp "$OUT"/ERR*subset.fq.gz out/ 2>/dev/null || true   # resume
+
+bash "$PBS_O_WORKDIR"/extract_reads.sh asmqc.sif FULL.fa regions.bed "$PRESET" out \
+    "$PBS_NCPUS" $RUNS
