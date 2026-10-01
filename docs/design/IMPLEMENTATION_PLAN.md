@@ -282,3 +282,7 @@ root, `asmqc test` passed on the runner, image pushed to
 (sha256 `18dfbbad…9239`), pulled back and verified, pre-release created with
 the sha256 asset and the pull command. The package is private after the
 first push; anonymous pulls fail until its visibility is set to public.
+Public packages had to be enabled at organisation level (Settings →
+Packages → Package creation) before `asmqc/sif` could be made public. After
+that (2026-10-01) an anonymous `apptainer pull` takes 2.5 min, the sha256
+matches the release asset, and the pulled image passes `asmqc test` offline.
