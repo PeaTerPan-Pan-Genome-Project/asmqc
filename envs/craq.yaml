@@ -1,0 +1,8 @@
+# Image environment /opt/envs/craq (SPEC §5.1). Locked in craq.lock.
+name: craq
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - craq=1.10

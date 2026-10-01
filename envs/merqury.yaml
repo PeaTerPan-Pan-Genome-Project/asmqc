@@ -1,0 +1,9 @@
+# Image environment /opt/envs/merqury (SPEC §5.1). Locked in merqury.lock.
+name: merqury
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - merqury=1.4.1
+  - meryl=1.4.2

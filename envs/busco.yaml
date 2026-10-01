@@ -1,0 +1,9 @@
+# Image environment /opt/envs/busco (SPEC §5.1). Locked in busco.lock.
+name: busco
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - busco=6.1.0
+  - miniprot=0.18

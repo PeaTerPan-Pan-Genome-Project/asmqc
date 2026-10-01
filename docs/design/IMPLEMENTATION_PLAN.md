@@ -52,7 +52,7 @@ built. Section references (§) point to SPEC.md.
 
 ## 3. Milestones
 
-One branch and pull request per milestone.
+Development is local, with commits directly on `main`; pushing is a separate decision.
 
 | # | Milestone | Content |
 |---|---|---|
@@ -89,3 +89,25 @@ One branch and pull request per milestone.
 - `%test` must run offline, on < 20 MB of data, in acceptable build time.
 - Read simulation for the test data: a seeded, pinned simulator or a small
   Python implementation.
+
+## 6. Findings
+
+Milestone 1 (2026-10-01). All five image environments install from their
+locks; every pinned tool version in §5.1 exists on bioconda.
+
+- `pandas` is pinned to 2.3.3 in `core` and `dev`: snakemake 9.27.0 requires
+  pandas < 3.
+- `quast` env pins Python 3.11.16: QUAST 5.3.0 imports `distutils`, removed in
+  Python 3.12, and fails under the otherwise-resolved Python 3.13.
+- mm2plus binary is `mm2plus`, a dispatcher that launches
+  `mm2plus.{avx2,avx512,…}` and prints the choice to stderr. Version parsing
+  must take the last stdout line.
+- CRAQ 1.10 (bioconda `craq-1.10`) prints `CRAQ Version: 1.0.9-alpha` in its
+  usage text; upstream did not update the string. "Tool versions are read
+  from the tools at run time" (§7.3) cannot hold for CRAQ: read the version
+  from the environment's `conda-meta` instead. **Open point for the
+  maintainers.**
+- `merqury.sh` needs `MERQURY=/opt/envs/merqury/share/merqury`, normally set by
+  conda activation. Rules do not activate (§5.2), so the rule sets it.
+- `craq` and `quast` envs pull minimap2 2.31 as a dependency. asmqc never calls
+  it: CRAQ receives the mm2-plus BAMs and QUAST runs without a reference.
