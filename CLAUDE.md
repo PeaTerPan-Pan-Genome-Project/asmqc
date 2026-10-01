@@ -26,17 +26,18 @@ pytest tests/unit/test_cli.py::test_version_exits_zero   # single test
 Image and smoke test:
 ```
 ./build.sh                       # writes VERSION.json, builds asmqc_<version>.sif, runs %test
-ASMQC_REFS=.refs ASMQC_ENV_ROOT=/mnt/ssd/asmqc_locktmp asmqc test   # smoke test outside the image
-ASMQC_REFS=.refs ASMQC_ENV_ROOT=/mnt/ssd/asmqc_locktmp pytest tests/integration  # with QUAST/Merqury/CRAQ
+ASMQC_REFS=.refs ASMQC_ENV_ROOT=$ENVS asmqc test   # smoke test outside the image
+ASMQC_REFS=.refs ASMQC_ENV_ROOT=$ENVS pytest tests/integration  # with QUAST/Merqury/CRAQ
 ```
 `apptainer build` needs network (conda, references); run it outside the
 agent sandbox.
 
 Environment variables:
 - `ASMQC_ENV_ROOT`: root of the tool envs (`/opt/envs` in the image). Unset,
-  all tools come from the current env. Locally, the image envs built from the
-  locks live in `/mnt/ssd/asmqc_locktmp` (QUAST, BUSCO, Merqury, CRAQ are not
-  in the dev env).
+  all tools come from the current env. For QUAST, BUSCO, Merqury and CRAQ
+  outside the image, point it (`$ENVS` above) at a directory of envs built
+  from the locks (`envs/make_locks.sh` with `LOCK_TMPDIR`, or
+  `conda create -p $ENVS/<env> --file envs/<env>.lock`).
 - `ASMQC_HOME`: install root with `workflow/`, `envs/`, `refs/`, `templates/`
   (`/opt/asmqc`); defaults to the repository root.
 - `ASMQC_REFS`: reference data (`/opt/asmqc/refs`); for development `.refs`.
