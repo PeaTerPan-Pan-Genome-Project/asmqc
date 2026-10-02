@@ -84,6 +84,20 @@ about 330 CPU-min per Gb of ONT. On 32 cores that is about 6 h for the
 Illumina and HiFi selections and about 22 h for ONT, plus downloads. About
 0.15× of each run's reads end up in the fixture.
 
+### Single host without a scheduler
+
+`run_cameor_fixture.sh` runs the three extractions in parallel (THREADS/3
+threads each, ~18 GB each) and then asmqc on the fixture: once with all three
+read types, once M9 on ONT alone. Put it in a directory with `asmqc.sif`,
+`FULL.fa`, `fixture/` and `extract_reads.sh`, then:
+
+```
+nohup ./run_cameor_fixture.sh all > run.log 2>&1 &      # THREADS=96 MEM_GB=200 by default
+```
+
+Stages `reads` and `fixture` can be run separately; both resume. Logs are in
+`logs/`, read subsets in `reads_<type>/`, asmqc results in `results/`.
+
 ## Using the fixture
 
 All three read types went into Cameor v2 (ONT for assembly, HiFi and short
