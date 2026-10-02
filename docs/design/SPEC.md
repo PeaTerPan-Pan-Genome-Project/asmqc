@@ -308,7 +308,8 @@ If NCBI's FASTA formatting ever changes the file md5, verify the md5 of the
   `m05_mito_scaffolds_n`, `m05_mito_scaffolds_bp`
 - `m05_chrom_plastid_like_bp`, `m05_chrom_mito_like_bp`
 - `m05_rdna45s_loci` (semicolon list), `m05_rdna45s_copies`,
-  `m05_rdna5s_loci`, `m05_rdna5s_copies`
+  `m05_rdna45s_fragments`
+- `m05_rdna5s_loci`, `m05_rdna5s_copies`, `m05_rdna5s_fragments`
 - `m05_rdna_only_scaffolds_n`, `m05_rdna_only_scaffolds_bp`
 
 **Module 6:**
@@ -581,13 +582,20 @@ approx_array_bp, fwd_repeats, rev_repeats.
    ```
    The 5S unit (~120 bp) is too short for minimap2.
 2. Take the subclass (18S/5.8S/25S/5S) from the query header after `#`.
-3. **Copies:** merge overlapping hits of the same subclass into one copy.
-   45S copies = 18S copies; 5S copies = 5S copies.
-4. **Arrays:** single-linkage clustering of copies of the same family within
-   **20 kb**.
-5. `rdna_arrays.tsv`: seq_id, start, end, family, copies, and context:
-   `chromosome`, `unplaced`, or `rdna_only_scaffold` (the array spans ≥ 80 % of
-   an unplaced sequence).
+3. **Copies:** keep hits covering **≥ 50 %** of the library subunit (query
+   length); merge overlapping kept hits of the same subclass into one copy.
+   45S copies = 18S copies; 5S copies = 5S copies. Shorter hits are dispersed
+   subunit fragments and pseudogenes; on Caméor v2 they produced "arrays" on
+   every chromosome.
+4. **Clusters:** single-linkage clustering of copies of the same family within
+   **20 kb**. A cluster with **≥ 3 copies (45S)** or **≥ 10 copies (5S)** is an
+   **array**; a smaller one is a **fragment**. Caméor v2 carries hundreds of
+   3–4-copy clusters of 5S-like sequence on every chromosome; its real 5S
+   arrays have 45 or more copies. `m05_rdna*_loci` and `m05_rdna*_copies` count arrays only;
+   `m05_rdna*_fragments` count the fragments.
+5. `rdna_arrays.tsv`: seq_id, start, end, family, copies, class (`array` /
+   `fragment`) and context: `chromosome`, `unplaced`, or `rdna_only_scaffold`
+   (an array spanning ≥ 80 % of an unplaced sequence).
 6. **Report only:**
    - The 45S NORs are expected on chr4 and chr7 in pea; never PASS/FAIL.
    - Assembled copy number measures how much of the array was captured, not
@@ -934,6 +942,7 @@ The concrete data and expected values are kept privately by the maintainers.
 | 2026-10-01 | BUSCO runs with `--opt-out-run-stats` (no network at run time) |
 | 2026-10-01 | gawk 5.4.1 in `core`: M11 callable regions from `samtools depth -a` need a C-speed filter |
 | 2026-10-01 | `logs/` is scrubbed of local paths at the end of every run (placeholders such as `<workdir>`) |
+| 2026-10-02 | M5 rDNA: copies need ≥ 50 % subunit coverage; arrays need ≥ 3 (45S) or ≥ 10 (5S) copies, smaller clusters counted as fragments (new columns `m05_rdna45s_fragments`, `m05_rdna5s_fragments`) |
 
 ## 13. Open points (to the maintainers before deciding)
 

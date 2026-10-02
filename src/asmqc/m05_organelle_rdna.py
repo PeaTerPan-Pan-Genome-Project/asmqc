@@ -76,10 +76,14 @@ def organelles(paf: Path, kinds: dict[str, str], lengths: dict[str, int]):
 
 # --- rDNA --------------------------------------------------------------------
 def rdna_hits(blast: Path) -> dict[tuple[str, str], list[tuple[int, int]]]:
-    """(subject, subclass) -> subject intervals (half-open)."""
+    """(subject, subclass) -> subject intervals (half-open) of hits covering at
+    least rdna_min_query_cov of the library subunit (outfmt "6 std qlen slen")."""
     out: dict[tuple[str, str], list] = {}
     for line in blast.read_text().splitlines():
         f = line.split("\t")
+        qstart, qend, qlen = int(f[6]), int(f[7]), int(f[12])
+        if (abs(qend - qstart) + 1) < P["rdna_min_query_cov"] * qlen:
+            continue
         sub = f[0].split("#", 1)[1].rsplit("/", 1)[1]
         s, e = sorted((int(f[8]), int(f[9])))
         out.setdefault((f[1], sub), []).append((s - 1, e))
@@ -87,7 +91,9 @@ def rdna_hits(blast: Path) -> dict[tuple[str, str], list[tuple[int, int]]]:
 
 
 def rdna_arrays(blast: Path, lengths: dict[str, int]) -> list[tuple]:
-    """Arrays: single-linkage clusters of copies of one family within the link distance."""
+    """Single-linkage clusters of copies of one family within the link distance;
+    class `array` with >= rdna_min_array_copies[family] copies, else `fragment`.
+    5S needs more: genomes carry many 3-4-copy clusters of 5S-like sequence."""
     copies = {k: merge(v) for k, v in rdna_hits(blast).items()}
     families = {"45S": ("18S", "5.8S", "25S"), "5S": ("5S",)}
     count_by = {"45S": "18S", "5S": "5S"}
@@ -97,19 +103,20 @@ def rdna_arrays(blast: Path, lengths: dict[str, int]) -> list[tuple]:
             units = [iv for s in subs for iv in copies.get((seq, s), [])]
             for s, e in merge(units, P["rdna_array_link_bp"]):
                 n = sum(1 for a, b in copies.get((seq, count_by[fam]), []) if a >= s and b <= e)
+                cls = "array" if n >= P["rdna_min_array_copies"][fam] else "fragment"
                 if seq in CHROMOSOMES:
                     context = "chromosome"
-                elif e - s >= P["rdna_only_min_frac"] * length:
+                elif cls == "array" and e - s >= P["rdna_only_min_frac"] * length:
                     context = "rdna_only_scaffold"
                 else:
                     context = "unplaced"
-                arrays.append((seq, s + 1, e, fam, n, context))
+                arrays.append((seq, s + 1, e, fam, n, cls, context))
     return arrays
 
 
 def loci(arrays: list[tuple], fam: str) -> str | None:
     """Chromosomes carrying an array of the family, then 'unplaced' if any."""
-    seqs = [a[0] for a in arrays if a[3] == fam]
+    seqs = [a[0] for a in arrays if a[3] == fam and a[5] == "array"]
     names = [c for c in CHROMOSOMES if c in seqs]
     if any(s not in CHROMOSOMES for s in seqs):
         names.append("unplaced")
@@ -120,7 +127,12 @@ def evaluate(paf, blast, kinds, lengths):
     scaffolds, on_chrom, flags = organelles(paf, kinds, lengths)
     arrays = rdna_arrays(blast, lengths)
     org = {k: [s for s in scaffolds if s[4] == k] for k in ("plastid", "mito")}
-    rdna_only = {a[0] for a in arrays if a[5] == "rdna_only_scaffold"}
+    rdna_only = {a[0] for a in arrays if a[6] == "rdna_only_scaffold"}
+
+    def count(fam, cls, field):
+        return sum((a[4] if field == "copies" else 1) for a in arrays
+                   if a[3] == fam and a[5] == cls)
+
     values = {
         "m05_plastid_scaffolds_n": len(org["plastid"]),
         "m05_plastid_scaffolds_bp": sum(s[1] for s in org["plastid"]),
@@ -129,9 +141,11 @@ def evaluate(paf, blast, kinds, lengths):
         "m05_chrom_plastid_like_bp": sum(r[1] for r in on_chrom),
         "m05_chrom_mito_like_bp": sum(r[3] for r in on_chrom),
         "m05_rdna45s_loci": loci(arrays, "45S"),
-        "m05_rdna45s_copies": sum(a[4] for a in arrays if a[3] == "45S"),
+        "m05_rdna45s_copies": count("45S", "array", "copies"),
+        "m05_rdna45s_fragments": count("45S", "fragment", "n"),
         "m05_rdna5s_loci": loci(arrays, "5S"),
-        "m05_rdna5s_copies": sum(a[4] for a in arrays if a[3] == "5S"),
+        "m05_rdna5s_copies": count("5S", "array", "copies"),
+        "m05_rdna5s_fragments": count("5S", "fragment", "n"),
         "m05_rdna_only_scaffolds_n": len(rdna_only),
         "m05_rdna_only_scaffolds_bp": sum(lengths[s] for s in rdna_only),
     }
@@ -158,7 +172,8 @@ def main(argv: list[str] | None = None) -> None:
                      ["chromosome", "plastid_like_bp", "largest_plastid_block_bp",
                       "mito_like_bp", "largest_mito_block_bp"], on_chrom)
     module.write_tsv(out / "rdna_arrays.tsv",
-                     ["seq_id", "start", "end", "family", "copies", "context"], arrays)
+                     ["seq_id", "start", "end", "family", "copies", "class", "context"],
+                     arrays)
     module.finish(args.work, M, values, flags)
 
 

@@ -69,9 +69,10 @@ COLUMNS: list[Column] = [
         "m05_mito_scaffolds_n", "m05_mito_scaffolds_bp",
         "m05_chrom_plastid_like_bp", "m05_chrom_mito_like_bp"),
     *_c("str", "m05_rdna45s_loci"),
-    *_c("int", "m05_rdna45s_copies"),
+    *_c("int", "m05_rdna45s_copies", "m05_rdna45s_fragments"),
     *_c("str", "m05_rdna5s_loci"),
-    *_c("int", "m05_rdna5s_copies", "m05_rdna_only_scaffolds_n", "m05_rdna_only_scaffolds_bp"),
+    *_c("int", "m05_rdna5s_copies", "m05_rdna5s_fragments",
+        "m05_rdna_only_scaffolds_n", "m05_rdna_only_scaffolds_bp"),
     # module 6
     *_c("pct", "m06_complete_pct", "m06_single_pct", "m06_duplicated_pct",
         "m06_fragmented_pct", "m06_missing_pct"),

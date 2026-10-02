@@ -25,6 +25,8 @@ PARAMS: dict[str, dict] = {
         "organelle_min_identity": 0.95,
         "organelle_scaffold_min_cov": 0.80,
         "rdna_evalue": 1e-10,
+        "rdna_min_query_cov": 0.50,
+        "rdna_min_array_copies": {"45S": 3, "5S": 10},
         "rdna_array_link_bp": 20000,
         "rdna_only_min_frac": 0.80,
     },

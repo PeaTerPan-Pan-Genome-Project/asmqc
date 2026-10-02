@@ -75,8 +75,10 @@ def test_m05_organelles(tmp_path):
     assert [f.code for f in flags] == ["organelle_scaffold"]
 
 
-def blast(q, s, ss, se):
-    return "\t".join(map(str, [q, s, 99, 100, 0, 0, 1, 100, ss, se, 0, 200, 100, 1000]))
+def blast(q, s, ss, se, qcov=1.0):
+    """BLAST outfmt "6 std qlen slen" line; the query (subunit) is 100 bp."""
+    return "\t".join(map(str, [q, s, 99, 100, 0, 0, 1, round(100 * qcov), ss, se, 0, 200,
+                               100, 1000]))
 
 
 def test_m05_rdna(tmp_path):
@@ -86,15 +88,19 @@ def test_m05_rdna(tmp_path):
         lines += [blast(q18, "chr4", 1000 + i * 10_000, 2800 + i * 10_000),
                   blast("d#rDNA/45S_rDNA/18S", "chr4", 1100 + i * 10_000, 2700 + i * 10_000),
                   blast(q25, "chr4", 3500 + i * 10_000, 6900 + i * 10_000)]
-    lines += [blast(q18, "chr4", 100_000, 101_800)]  # > 20 kb away: second array
-    lines += [blast(q5, "u1", 400 + i * 350, 280 + i * 350) for i in range(5)]  # minus strand
+    lines += [blast(q18, "chr4", 100_000, 101_800)]  # > 20 kb away: a 1-copy fragment
+    lines += [blast(q5, "u1", 400 + i * 350, 280 + i * 350) for i in range(12)]  # minus strand
+    lines += [blast(q5, "chr5", 9000 + i * 350, 9100 + i * 350) for i in range(4)]  # 5S < 10
+    # hits covering < 50 % of the subunit are not copies
+    lines += [blast(q5, "chr2", 5000 + i * 350, 5040 + i * 350, qcov=0.4) for i in range(9)]
     p = tmp_path / "b.tsv"
     p.write_text("\n".join(lines) + "\n")
-    lengths = dict.fromkeys(CHROMOSOMES, LEN) | {"u1": 2000}
+    lengths = dict.fromkeys(CHROMOSOMES, LEN) | {"u1": 4800}
     arrays = m05.rdna_arrays(p, lengths)
-    assert arrays == [("chr4", 1000, 26_900, "45S", 3, "chromosome"),
-                      ("chr4", 100_000, 101_800, "45S", 1, "chromosome"),
-                      ("u1", 280, 1800, "5S", 5, "unplaced")]
+    assert arrays == [("chr4", 1000, 26_900, "45S", 3, "array", "chromosome"),
+                      ("chr4", 100_000, 101_800, "45S", 1, "fragment", "chromosome"),
+                      ("chr5", 9000, 10_150, "5S", 4, "fragment", "chromosome"),
+                      ("u1", 280, 4250, "5S", 12, "array", "rdna_only_scaffold")]  # 82.7 %
     assert m05.loci(arrays, "45S") == "chr4" and m05.loci(arrays, "5S") == "unplaced"
 
 

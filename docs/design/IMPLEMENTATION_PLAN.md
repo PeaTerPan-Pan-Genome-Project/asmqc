@@ -308,3 +308,10 @@ Real-data fixture (`tests/realdata/`): ~50 Mb cut from Cameor v2 with
 1-kb multiples so no round AGP cut is an artefact of the fixture). Modules
 1, 2, 4, 5, 6, 7 on it: 4.3 min (BUSCO 4 min), all ok; BUSCO C 3.1 %,
 internal stops 4.2 %.
+M5 rDNA decided (2026-10-02, SPEC §8.5): copies need ≥ 50 % subunit
+coverage; arrays need ≥ 3 (45S) or ≥ 10 (5S) copies, smaller clusters are
+fragments with their own columns. With ≥ 3 for 5S, hundreds of 3-4-copy
+clusters of 5S-like sequence (within ~1 kb) still made 5S "arrays" on every
+chromosome. Cameor v2 with the final rule: 45S loci chr3;chr4;chr7;unplaced
+(6 arrays, 60 copies), 5S loci chr1;chr2;chr3;unplaced (8 arrays, 2,644
+copies). Released as `0.1.0rc2` with the M6 fix.

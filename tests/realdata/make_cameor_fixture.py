@@ -74,7 +74,8 @@ def chromosome_blocks(chrom: str, length: int, res: Path, args) -> list[tuple[in
     # Arrays below min_array_copies are mostly dispersed subunit fragments
     # (BLAST hits of any length count as copies in M5).
     for a in read_tsv(res / "m05_organelle_rdna" / "rdna_arrays.tsv"):
-        if a["seq_id"] == chrom and int(a["copies"]) >= args.min_array_copies:
+        if (a["seq_id"] == chrom and a.get("class", "array") == "array"
+                and int(a["copies"]) >= args.min_array_copies):
             s = max(1, int(a["start"]) - args.flank_bp)
             e = min(length, int(a["end"]) + args.flank_bp, s + args.max_block_bp - 1)
             blocks.append((*off_grid(s, e, length), f"rdna{a['family']}"))
