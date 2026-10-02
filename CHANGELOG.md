@@ -4,6 +4,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions
 follow semantic versioning; results are comparable only within one
 `MAJOR.MINOR` version.
 
+## [0.1.0rc4] - 2026-10-02
+
+Fourth release candidate. Not validated against SPEC §11.2; results are not
+for comparison.
+
+### Fixed
+
+- Read mapping failed on pea chromosomes longer than 536,870,912 bp (2^29):
+  BAMs were indexed as BAI. Every BAM and VCF index is now CSI. CRAQ (M9)
+  gets `.bai` links to the CSI index and a samtools shim that makes its
+  internal indexing CSI too.
+
 ## [0.1.0rc3] - 2026-10-02
 
 Third release candidate. Not validated against SPEC §11.2; results are not

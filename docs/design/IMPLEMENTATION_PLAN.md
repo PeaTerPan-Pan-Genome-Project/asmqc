@@ -324,3 +324,22 @@ several accessions. Implemented with anchors from asmqc M6 on full Caméor v2
 chr1-chr7). On the 50 Mb fixture: 215 shared BUSCOs, every chromosome
 matches its own Caméor chromosome, forward. §9 note: M6 on 3.9 Gb took 9.5
 min on 64 threads, far below the 3-8 h estimate.
+
+Large chromosomes (2026-10-02). The JI1006 run with `0.1.0rc3` failed at
+`samtools index`: BAI and TBI store positions only up to 2^29
+(536,870,912 bp); pea chromosomes reach ~650 Mb. Audit of every index:
+- our BAMs (`mapping.py`): now `samtools index -c`; consumers
+  (`samtools depth -r/-b`, `bcftools mpileup -R`) read CSI;
+- M11 VCF: `bcftools index` was CSI by default, now explicit `-c`; no tabix;
+- CRAQ 1.10: `bin/craq` dies unless `<bam>.bai` exists (existence test
+  only); `runLR.sh`/`runSR.sh` run plain `samtools index` without `set -e`,
+  so a failed BAI was silent and the index is never read (all later steps
+  stream). Fix: inputs linked into `m09/craq/inputs/` with `.bai` -> `.csi`
+  links, and `workflow/bin/craq_shim/samtools` (CRAQ rule only) turns
+  `index` into `index -c`. Synthetic M9 results unchanged.
+- No index involved: mm2-plus, faidx, seqkit, BLAST, tidk, QUAST, BUSCO,
+  meryl/Merqury, `samtools depth | gawk`; the full 656 Mb Caméor chr5 went
+  through M1, M4, M5, M6, M7 without trouble.
+Test: `tests/unit/test_large_chromosomes.py` (a 700 Mb header, a read at
+600 Mb: BAI fails, our CSI path and the shim work).
+Released as `0.1.0rc4`.

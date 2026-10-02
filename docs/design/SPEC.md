@@ -192,8 +192,10 @@ The read type actually used is recorded in each module's output.
     working copy. The sequence content is unchanged, and the renaming map goes
     into the manifest.
   - `map_<readtype>`: one mm2-plus mapping per read type, then
-    `samtools sort` + `index`, with read groups and
-    `--max-chain-skip=1000000`:
+    `samtools sort` + `index -c`, with read groups and
+    `--max-chain-skip=1000000`. Every BAM and VCF index is **CSI**: BAI and
+    TBI cannot store positions beyond 2^29 (536,870,912 bp), and pea
+    chromosomes reach ~650 Mb.
 
     | Reads | Preset |
     |---|---|
@@ -713,7 +715,11 @@ Inspector was considered and not included:
   `lr:hq` on R9 data would under-align and invent breakpoints.
 
 **Command:** `craq -g ASM.fa -sms long.sorted.bam [-ngs short.sorted.bam] -t N`
-with CRAQ defaults.
+with CRAQ defaults. CRAQ 1.10 requires `<bam>.bai` to exist and indexes its
+own filtered BAMs with plain `samtools index` (BAI). The BAMs are therefore
+linked into the CRAQ run directory with `.bai` links to the CSI index (CRAQ
+only tests that the file exists), and a `samtools` shim used only for CRAQ
+turns `index` into `index -c`.
 
 **Parse `out_final.Report`:** AQI, R-AQI, S-AQI, CRE count, CSE count. Keep
 the CRE and CSE BEDs.
@@ -961,6 +967,7 @@ The concrete data and expected values are kept privately by the maintainers.
 | 2026-10-01 | `logs/` is scrubbed of local paths at the end of every run (placeholders such as `<workdir>`) |
 | 2026-10-02 | M5 rDNA: copies need ≥ 50 % subunit coverage; arrays need ≥ 3 (45S) or ≥ 10 (5S) copies, smaller clusters counted as fragments (new columns `m05_rdna45s_fragments`, `m05_rdna5s_fragments`) |
 | 2026-10-02 | M6 synteny with Caméor v2 from BUSCO anchors (committed table, no reference sequence in the image); report only |
+| 2026-10-02 | CSI indexes for all BAMs and VCFs (pea chromosomes exceed the 2^29 BAI/TBI limit); CRAQ gets `.bai` links to CSI and a samtools shim |
 
 ## 13. Open points (to the maintainers before deciding)
 

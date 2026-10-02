@@ -15,15 +15,23 @@ rule m09_craq:
         touch(W / "m09" / "craq.done"),
     params:
         pre=env("craq", "m09"),
-        ngs=f"-ngs {W}/map/illumina.bam" if M09_NGS else "",
+        ngs="-ngs inputs/illumina.bam" if M09_NGS else "",
+        shim=Path(workflow.basedir) / "bin" / "craq_shim",
     threads: workflow.cores
     log:
         log("m09_craq"),
     benchmark:
         bench("m09", "craq")
     shell:
-        "{params.pre}( mkdir -p {W}/m09/craq && cd {W}/m09/craq && rm -rf output"
-        " && craq -g {input.fa} -sms {input.sms} {params.ngs} -t {threads} ) > {log} 2>&1"
+        # CRAQ insists on <bam>.bai and indexes its filtered BAMs with plain
+        # "samtools index" (BAI, fails beyond 2^29 bp). Inputs are linked into
+        # its run dir with .bai -> .csi links (CRAQ only checks the file
+        # exists), and a samtools shim on PATH turns "index" into "index -c".
+        "{params.pre}( mkdir -p {W}/m09/craq/inputs && cd {W}/m09/craq && rm -rf output"
+        " && for b in {input.sms} {input.ngs}; do n=$(basename $b);"
+        " ln -sf $b inputs/$n && ln -sf $b.csi inputs/$n.csi && ln -sf $b.csi inputs/$n.bai; done"
+        " && PATH={params.shim}:$PATH craq -g {input.fa} -sms inputs/$(basename {input.sms})"
+        " {params.ngs} -t {threads} ) > {log} 2>&1"
 
 
 rule m09:

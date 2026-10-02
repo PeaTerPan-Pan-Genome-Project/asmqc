@@ -17,7 +17,7 @@ rule map_reads:
         reads=lambda w: [f for u in read_units(w.rt) for f in u.split(",")],
     output:
         bam=W / "map" / "{rt}.bam",
-        bai=W / "map" / "{rt}.bam.bai",
+        csi=W / "map" / "{rt}.bam.csi",  # CSI: BAI cannot hold positions > 2^29
     wildcard_constraints:
         rt="illumina|hifi|ont_r9|ont_r10",
     params:

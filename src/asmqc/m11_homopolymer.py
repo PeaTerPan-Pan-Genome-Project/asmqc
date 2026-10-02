@@ -80,7 +80,7 @@ def cmd_call(args) -> None:
         vcfs = list(pool.map(one, enumerate(regions(lengths))))
     out = args.work / "calls.norm.vcf.gz"
     cmd = (f"bcftools concat -Ou {' '.join(map(str, vcfs))}"
-           f" | bcftools norm -f {args.fa} -m -both -Oz -o {out} && bcftools index {out}")
+           f" | bcftools norm -f {args.fa} -m -both -Oz -o {out} && bcftools index -c {out}")  # CSI: TBI has the 2^29 limit
     subprocess.run(["bash", "-o", "pipefail", "-c", cmd], check=True)
 
 

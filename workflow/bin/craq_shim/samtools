@@ -1,0 +1,14 @@
+#!/bin/sh
+# samtools shim for CRAQ only (workflow/rules/m09.smk): CRAQ runs plain
+# "samtools index", which writes a BAI and fails for positions beyond 2^29;
+# pea chromosomes reach ~650 Mb. "index" becomes "index -c" (CSI); every
+# other subcommand goes to the real samtools unchanged.
+self=$(cd "$(dirname "$0")" && pwd)
+real=$(PATH=$(printf '%s' "$PATH" | tr ':' '\n' | grep -vxF "$self" | paste -sd: -) command -v samtools)
+[ -n "$real" ] || { echo "craq_shim: no samtools on PATH" >&2; exit 127; }
+if [ "$1" = index ]; then
+    shift
+    case " $* " in *" -c "*|*" -b "*|*" --csi "*|*" --bai "*) exec "$real" index "$@" ;; esac
+    exec "$real" index -c "$@"
+fi
+exec "$real" "$@"

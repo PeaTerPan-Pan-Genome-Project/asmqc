@@ -1,7 +1,7 @@
 """Shared `map_<readtype>` stage (SPEC §5.2): mm2-plus, sort, index.
 
 One mm2plus run per read file (per R1/R2 pair for Illumina), each with its
-own read group, then merged into one coordinate-sorted, indexed BAM.
+own read group, then merged into one coordinate-sorted BAM with a CSI index.
 
 Usage: python -m asmqc.mapping --fa FA --read-type T --label L --threads N
            --mem-mb M --out BAM UNIT [UNIT ...]
@@ -55,8 +55,14 @@ def main(argv: list[str] | None = None) -> None:
            + " ".join(str(p) for p in parts))
         for p in parts:
             p.unlink()
-    sh(f"samtools index -@ {args.threads} {args.out}")
+    index_bam(args.out, args.threads)
     tmp.rmdir()
+
+
+def index_bam(bam: Path, threads: int = 1) -> None:
+    """CSI index (bam.csi). BAI cannot store positions beyond 2^29 (536,870,912);
+    pea chromosomes reach ~650 Mb."""
+    sh(f"samtools index -c -@ {threads} {shlex.quote(str(bam))}")
 
 
 if __name__ == "__main__":
