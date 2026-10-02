@@ -2,7 +2,7 @@
 
 Usage:
   python -m asmqc.m06_busco check-lineage --lineage-dir DIR
-  python -m asmqc.m06_busco summarise --busco-dir DIR --outdir DIR --work DIR
+  python -m asmqc.m06_busco summarise --busco-dir DIR --fai FAI --outdir DIR --work DIR
 """
 
 import argparse
@@ -10,7 +10,7 @@ import json
 import shutil
 from pathlib import Path
 
-from asmqc import module
+from asmqc import module, synteny
 from asmqc.params import PARAMS
 from asmqc.validate import CHROMOSOMES
 
@@ -110,7 +110,7 @@ def derived(rows: list[dict]) -> tuple[dict, list[tuple]]:
     return counts, table
 
 
-def summarise(busco_dir: Path, outdir: Path, work: Path) -> None:
+def summarise(busco_dir: Path, outdir: Path, work: Path, fai: Path | None = None) -> None:
     lineage = P["lineage"]
     summary_json = busco_dir / f"short_summary.specific.{lineage}.busco.json"
     full_table = busco_dir / f"run_{lineage}" / "full_table.tsv"
@@ -119,7 +119,8 @@ def summarise(busco_dir: Path, outdir: Path, work: Path) -> None:
     if problems:
         raise SystemExit("BUSCO run does not match the pinned setup: " + "; ".join(problems))
     res = s["results"]
-    counts, table = derived(read_full_table(full_table))
+    rows = read_full_table(full_table)
+    counts, table = derived(rows)
     values = {
         "m06_complete_pct": res["Complete percentage"],
         "m06_single_pct": res["Single copy percentage"],
@@ -137,6 +138,13 @@ def summarise(busco_dir: Path, outdir: Path, work: Path) -> None:
     module.write_tsv(outdir / "busco_derived.tsv",
                      ["busco_id", "status", "n_copies", "n_on_chromosomes", "n_on_unplaced",
                       "sequences"], table)
+    anchors = synteny.anchors_path()
+    if fai is not None and anchors.exists():  # report-only synteny against Caméor v2
+        _, ref = synteny.read_anchors(anchors)
+        pts = synteny.points(rows, ref)
+        module.write_tsv(outdir / "synteny_points.tsv", synteny.POINT_COLUMNS, pts)
+        module.write_tsv(outdir / "synteny.tsv", synteny.TABLE_COLUMNS,
+                         synteny.table(pts, module.read_fai(fai)))
     module.finish(work, M, values)
 
 
@@ -147,6 +155,7 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--busco-dir", type=Path)
     ap.add_argument("--outdir", type=Path)
     ap.add_argument("--work", type=Path)
+    ap.add_argument("--fai", type=Path, help="tested assembly .fai, for the synteny table")
     args = ap.parse_args(argv)
     if args.step == "check-lineage":
         problems = check_lineage(args.lineage_dir)
@@ -154,7 +163,7 @@ def main(argv: list[str] | None = None) -> None:
             raise SystemExit("; ".join(problems))
         print(json.dumps(read_cfg(args.lineage_dir)))
     else:
-        summarise(args.busco_dir, args.outdir, args.work)
+        summarise(args.busco_dir, args.outdir, args.work, args.fai)
 
 
 if __name__ == "__main__":

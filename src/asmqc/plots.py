@@ -119,3 +119,60 @@ def scatter(points: list[tuple[str, float, float]], xlabel: str, ylabel: str) ->
     ax.set_xlabel(xlabel, color=INK2, fontsize=9)
     ax.set_ylabel(ylabel, color=INK2, fontsize=9)
     return _png(fig)
+
+
+CHROMS = [f"chr{i}" for i in range(1, 8)]
+
+
+def dotplot(pts: list[dict], ref_lengths: dict[str, int], lengths: dict[str, int],
+            title: str, small: bool = False) -> bytes:
+    """BUSCO-anchored dotplot: reference chr1-chr7 (x) against the assembly
+    chr1-chr7 (y), unplaced hits in a band on top; slot 1 same, slot 2
+    opposite gene orientation."""
+    def offsets(ls):
+        off, pos = {}, 0
+        for c in CHROMS:
+            off[c] = pos
+            pos += int(ls.get(c, 0) or 0)
+        return off, pos
+
+    ro, rtot = offsets(ref_lengths)
+    so, stot = offsets(lengths)
+    band = stot * 0.04
+    fig, ax = _figure(width=2.6 if small else 6.0, height=2.7 if small else 6.0)
+    ax.grid(False)
+    groups = {"yes": ([], []), "no": ([], [])}
+    for p in pts:
+        x = ro[p["ref_chromosome"]] + int(p["ref_pos"])
+        if p["seq_id"] in so:
+            y = so[p["seq_id"]] + int(p["pos"])
+        else:  # spread unplaced hits inside the band
+            y = stot + band * (0.25 + 0.5 * (sum(map(ord, p["seq_id"])) % 97) / 97)
+        groups[p["same_strand"]][0].append(x)
+        groups[p["same_strand"]][1].append(y)
+    size = 0.6 if small else 1.6
+    for key, colour, label in (("yes", SERIES[0], "same orientation"),
+                               ("no", SERIES[1], "opposite orientation")):
+        ax.scatter(*groups[key], s=size, color=colour, linewidths=0, rasterized=True,
+                   label=label)
+    for c in CHROMS[1:]:
+        ax.axvline(ro[c], color=GRID, lw=0.6)
+        ax.axhline(so[c], color=GRID, lw=0.6)
+    ax.axhline(stot, color=INK2, lw=0.6)
+    ax.set_xlim(0, rtot)
+    ax.set_ylim(0, stot + band)
+    fs = 6 if small else 8
+    lab = [c.removeprefix("chr") for c in CHROMS]
+    ax.set_xticks([ro[c] + ref_lengths[c] / 2 for c in CHROMS], lab, fontsize=fs, color=INK2)
+    ax.set_yticks([so[c] + int(lengths.get(c, 0) or 0) / 2 for c in CHROMS] + [stot + band / 2],
+                  [*lab, "u"], fontsize=fs, color=INK2)
+    ax.tick_params(length=0)
+    for sp in ax.spines.values():
+        sp.set_visible(True)
+        sp.set_color(GRID)
+    ax.set_title(title, color=INK, fontsize=7 if small else 9, loc="left")
+    if not small:
+        ax.set_xlabel("Caméor v2 chromosomes", color=INK2, fontsize=9)
+        ax.set_ylabel("assembly chromosomes (u = unplaced)", color=INK2, fontsize=9)
+        ax.legend(loc="upper left", fontsize=7, markerscale=6, frameon=False, labelcolor=INK)
+    return _png(fig)

@@ -229,6 +229,7 @@ mismatch**. All md5s are written to the run manifest.
 | Mitochondrial genome | NCBI **PP555264.1** (*L. oleraceus* subsp. *oleraceus* voucher JI_281 mitochondrion, complete genome, 363,796 bp) | `3b6f306756e911a3ed2ff7c5005d3a03` | |
 | rDNA subunit library | [`kavonrtep/CARP`](https://github.com/kavonrtep/CARP) tag `1.9.0`, `data/rdna_library.fasta` | `f09e64b09f99f83a44653a6a9153373b` | GPL-3.0. 117 sequences: 23 × 18S, 18 × 5.8S, 17 × 25S, 59 × 5S. Headers are `>id#rDNA/45S_rDNA/18S`. |
 | Telomere motif | constant `TTTAGGG` | — | |
+| M6 synteny anchors | `refs/cameor_v2_busco_anchors.tsv`, committed; built by `refs/make_busco_anchors.py` from asmqc M6 on Caméor v2 (GCA_977071245.1) | md5 in the run manifest | Complete single-copy BUSCOs (`fabales_odb12.2`) on chr1–chr7 with positions, strands and chromosome lengths; 7,404 rows. The Caméor sequence is not in the image. |
 | Karyoplot code | [`kavonrtep/ont_genome_assembly_pipeline`](https://github.com/kavonrtep/ont_genome_assembly_pipeline) `scripts/telomere_karyoplot.py` @ `2144dc8b467b7c606c52b6e8667b8ce24640b077` | — | GPL-3.0; adapted (§8.4), with its origin in the file header |
 
 If NCBI's FASTA formatting ever changes the file md5, verify the md5 of the
@@ -250,7 +251,7 @@ If NCBI's FASTA formatting ever changes the file md5, verify the md5 of the
   m02_contiguity/  contiguity.tsv  per_chromosome.tsv  quast_report.tsv
   m04_telomeres/   telomeres.tsv  telomeres_unplaced.tsv  interstitial.tsv  tidk_windows.tsv  karyoplot.png
   m05_organelle_rdna/ organelle_scaffolds.tsv  organelle_on_chromosomes.tsv  rdna_arrays.tsv
-  m06_busco/       short_summary.json  full_table.tsv  busco_derived.tsv
+  m06_busco/       short_summary.json  full_table.tsv  busco_derived.tsv  synteny.tsv  synteny_points.tsv
   m07_redundancy/  redundancy.tsv
   m08_merqury/     merqury.qv  per_chromosome_qv.tsv  completeness.stats  asm_only_kmers.bed.gz  spectra-cn.png  spectra-asm.png
   m09_craq/        out_final.Report  CRE.bed  CSE.bed  craq_derived.tsv
@@ -627,6 +628,22 @@ busco --in ASM.fa --mode genome --lineage_dataset fabales_odb12.2 --offline \
 **Report text:** in high-quality assemblies C % saturates near 100, so D % and
 the derived numbers carry the signal.
 
+**Synteny with Caméor v2 (report only).** The Complete single-copy BUSCOs of
+the tested assembly are joined by BUSCO id with the anchor table (§6), the
+same BUSCOs in Caméor v2. No alignment is run and the Caméor sequence is not
+needed.
+- `synteny_points.tsv`: one row per shared BUSCO (Caméor chromosome and
+  position, assembly sequence and position, same strand yes/no).
+- `synteny.tsv`: per assembly chromosome (unplaced pooled): BUSCO count,
+  best-matching Caméor chromosome, share on it, orientation (`forward` /
+  `reverse` / `mixed` from the rank correlation of positions on the best
+  chromosome, ±0.5).
+- A dotplot in `report.html`; small multiples in the combined report.
+- Nothing enters `qc_summary.tsv`: comparing with another accession stays out
+  of the QC metrics (§8.2). Resolution is set by gene density, about one point
+  per 0.5 Mb; it shows swapped, reversed or translocated chromosomes, not
+  rearrangements below a few Mb.
+
 ### 8.7 Module 7: redundancy of unplaced scaffolds
 
 **This is a measurement, never a purge.**
@@ -943,6 +960,7 @@ The concrete data and expected values are kept privately by the maintainers.
 | 2026-10-01 | gawk 5.4.1 in `core`: M11 callable regions from `samtools depth -a` need a C-speed filter |
 | 2026-10-01 | `logs/` is scrubbed of local paths at the end of every run (placeholders such as `<workdir>`) |
 | 2026-10-02 | M5 rDNA: copies need ≥ 50 % subunit coverage; arrays need ≥ 3 (45S) or ≥ 10 (5S) copies, smaller clusters counted as fragments (new columns `m05_rdna45s_fragments`, `m05_rdna5s_fragments`) |
+| 2026-10-02 | M6 synteny with Caméor v2 from BUSCO anchors (committed table, no reference sequence in the image); report only |
 
 ## 13. Open points (to the maintainers before deciding)
 

@@ -4,6 +4,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions
 follow semantic versioning; results are comparable only within one
 `MAJOR.MINOR` version.
 
+## [Unreleased]
+
+### Added
+
+- M6 synteny with Caméor v2 (report only): a dotplot from shared Complete
+  single-copy BUSCOs, `synteny.tsv` (best-matching Caméor chromosome and
+  orientation per chromosome) and `synteny_points.tsv`; small multiples in the
+  combined report. The anchors are a committed table; the Caméor sequence is
+  not in the image.
+
 ## [0.1.0rc2] - 2026-10-02
 
 Second release candidate, after the first runs on a real assembly (Caméor

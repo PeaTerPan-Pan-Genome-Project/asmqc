@@ -315,3 +315,12 @@ clusters of 5S-like sequence (within ~1 kb) still made 5S "arrays" on every
 chromosome. Cameor v2 with the final rule: 45S loci chr3;chr4;chr7;unplaced
 (6 arrays, 60 copies), 5S loci chr1;chr2;chr3;unplaced (8 arrays, 2,644
 copies). Released as `0.1.0rc2` with the M6 fix.
+
+M6 synteny (2026-10-02). Prototype on the phylogeny BUSCO records
+(`fabales_odb12`, 22 pangenome assemblies, scratch only): 3 s for all
+dotplots; shows chr1/chr5 and chr3/chr5 translocations relative to Caméor in
+several accessions. Implemented with anchors from asmqc M6 on full Caméor v2
+(`0.1.0rc2`, 64 threads: 9.5 min; C 99.5 %, 7,404 single-copy anchors on
+chr1-chr7). On the 50 Mb fixture: 215 shared BUSCOs, every chromosome
+matches its own Caméor chromosome, forward. §9 note: M6 on 3.9 Gb took 9.5
+min on 64 threads, far below the 3-8 h estimate.

@@ -66,6 +66,9 @@ def reference_data() -> dict:
         for line in lines[1:]:
             name, _url, md5, *_ = line.split("\t")
             out[name] = {"md5": md5}
+    anchors = asmqc_home() / "refs" / "cameor_v2_busco_anchors.tsv"
+    if anchors.exists():  # committed, not downloaded; md5 of the file in use
+        out["cameor_v2_busco_anchors"] = {"md5": file_md5(anchors)}
     lineage = PARAMS["m06"]["lineage"]
     if lineage in out:
         out[lineage] |= {"date": PARAMS["m06"]["lineage_date"],

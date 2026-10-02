@@ -30,7 +30,8 @@ rule m06_busco:
 
 rule m06:
     input:
-        rules.m06_busco.output,
+        busco=rules.m06_busco.output,
+        fai=W / "prep" / "asm.fa.fai",
     output:
         W / "m06" / "summary.json",
     params:
@@ -42,4 +43,4 @@ rule m06:
         bench("m06", "m06")
     shell:
         "{params.pre}{PY} -m asmqc.m06_busco summarise --busco-dir {W}/m06/busco"
-        " --outdir {params.out} --work {W}/m06 > {log} 2>&1"
+        " --fai {input.fai} --outdir {params.out} --work {W}/m06 > {log} 2>&1"

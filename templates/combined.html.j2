@@ -17,6 +17,7 @@ td, th { white-space: nowrap; }
   <h1>asmqc combined report</h1>
   <p class="muted">{{ rows|length }} assemblies · asmqc {{ rows[0].asmqc_version }}</p>
   <nav><a href="#table">table</a><a href="#telomeres">telomeres</a>
+    <a href="#synteny">synteny</a>
     <a href="#homopolymers">homopolymer errors</a><a href="#stops">stop codons vs HP errors</a></nav>
 </header>
 
@@ -48,6 +49,18 @@ td, th { white-space: nowrap; }
   {% endfor %}
 </div>
 {% else %}<p class="muted">No assembly has M4 results.</p>{% endif %}
+
+<h2 id="synteny">Synteny with Caméor v2 (M6, report only)</h2>
+{% if dotplots %}
+<p class="muted">x = Caméor v2 chr1–chr7, y = assembly chr1–chr7 (top band: unplaced);
+  blue same, orange opposite gene orientation.</p>
+<div class="grid">
+  {% for label, uri in dotplots %}
+  <figure class="card"><img src="{{ uri }}" alt="dotplot {{ label }}">
+    <figcaption>{{ label }}</figcaption></figure>
+  {% endfor %}
+</div>
+{% else %}<p class="muted">No assembly has M6 synteny results.</p>{% endif %}
 
 <h2 id="homopolymers">Homopolymer errors (M11)</h2>
 {% if hp_plots %}

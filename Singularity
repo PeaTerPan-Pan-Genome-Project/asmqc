@@ -21,6 +21,8 @@ From: mambaorg/micromamba:2.9.0
     templates /opt/asmqc/templates
     refs/refs.tsv /opt/asmqc/refs/refs.tsv
     refs/fetch_refs.py /opt/asmqc/refs/fetch_refs.py
+    refs/cameor_v2_busco_anchors.tsv /opt/asmqc/refs/cameor_v2_busco_anchors.tsv
+    refs/make_busco_anchors.py /opt/asmqc/refs/make_busco_anchors.py
     tests/make_testdata.py /opt/asmqc/tests/make_testdata.py
 
 %post

@@ -140,6 +140,21 @@ def asm_only_near_errors(res: Path, window: int = 20) -> tuple[int, int] | None:
     return near, total
 
 
+def synteny_dotplot(res: Path, label: str, small: bool = False) -> bytes | None:
+    from asmqc import synteny
+
+    pts = read_tsv(res / "m06_busco" / "synteny_points.tsv")
+    tab = read_tsv(res / "m06_busco" / "synteny.tsv")
+    anchors = synteny.anchors_path()
+    if not (pts and tab and anchors.exists()):
+        return None
+    ref_lengths, _ = synteny.read_anchors(anchors)
+    lengths = {r["chromosome"]: int(r["length"]) for r in tab
+               if r["chromosome"] != "unplaced" and r["length"] != "NA"}
+    title = label if small else f"{label} against Caméor v2 ({len(pts)} BUSCOs)"
+    return plots.dotplot(pts, ref_lengths, lengths, title, small=small)
+
+
 # --- per-assembly report -------------------------------------------------------------
 def module_sections(data: dict, contig_lengths: list[int] | None) -> list[dict]:
     row, res = data["row"], data["dir"]
@@ -162,6 +177,11 @@ def module_sections(data: dict, contig_lengths: list[int] | None) -> list[dict]:
             sec["images"].append(("Telomere karyoplot",
                                   file_uri(res / "m04_telomeres" / "karyoplot.png")))
         elif m == "m06":
+            dp = synteny_dotplot(res, row["label"])
+            if dp:
+                caption = "Synteny with Caméor v2 (Complete single-copy BUSCOs; report only)"
+                sec["images"].append((caption, png_uri(dp)))
+                sec["synteny"] = read_tsv(res / "m06_busco" / "synteny.tsv")
             n = dup_buscos_on_duplicates(res)
             if n is not None:
                 sec["notes"].append(f"Duplicated BUSCOs with an unplaced copy on an M7 "
@@ -222,7 +242,7 @@ def render_assembly(res: Path, work: Path | None = None) -> Path:
 def render_combined(results: list[dict], out: Path) -> Path:
     groups = [("identity", [c for c in schema.HEADER if c[:3] not in schema.MODULES])]
     groups += [(m, [c for c in schema.HEADER if c.startswith(f"{m}_")]) for m in schema.MODULES]
-    karyoplots, hp_plots, points = [], [], []
+    karyoplots, hp_plots, dotplots, points = [], [], [], []
     for r in results:
         label, row, res = r["row"]["label"], r["row"], r["dir"]
         k = file_uri(res / "m04_telomeres" / "karyoplot.png")
@@ -231,6 +251,9 @@ def render_combined(results: list[dict], out: Path) -> Path:
         rows = read_tsv(res / "m11_homopolymer" / "errors.tsv")
         if rows:
             hp_plots.append((label, png_uri(plots.hp_errors(rows, label))))
+        dp = synteny_dotplot(res, label, small=True)
+        if dp:
+            dotplots.append((label, png_uri(dp)))
         x, y = row["m06_internal_stop_pct"], row["m11_hp_errors_per_mb"]
         if x != schema.NA and y != schema.NA:
             points.append((label, float(x), float(y)))
@@ -238,7 +261,8 @@ def render_combined(results: list[dict], out: Path) -> Path:
                                     "M11 HP errors per Mb")) if points else None
     html = environment().get_template("combined.html.j2").render(
         rows=[r["row"] for r in results], groups=groups, titles=MODULE_TITLES,
-        karyoplots=karyoplots, hp_plots=hp_plots, scatter=scatter, n_points=len(points))
+        karyoplots=karyoplots, hp_plots=hp_plots, dotplots=dotplots, scatter=scatter,
+        n_points=len(points))
     path = out / "report.html"
     path.write_text(html)
     return path

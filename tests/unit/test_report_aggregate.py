@@ -85,3 +85,20 @@ def test_crosschecks(tmp_path):
     with gzip.open(d / "m11_homopolymer" / "errors.bed.gz", "wt") as fh:
         fh.write("chr1\t130\t130\thp\tA\t9\t+1A\t50\t30\n")
     assert report.asm_only_near_errors(d) == (1, 3)
+
+
+def test_synteny_dotplot_rendered(tmp_path):
+    d = result_dir(tmp_path, "S1")
+    (d / "m06_busco").mkdir()
+    (d / "m06_busco" / "synteny_points.tsv").write_text(
+        "busco_id\tref_chromosome\tref_pos\tseq_id\tpos\tsame_strand\n"
+        "b1\tchr1\t1000\tchr1\t900\tyes\nb2\tchr5\t5000\tchr1\t2000\tno\n"
+        "b3\tchr2\t100\tscaf9\t10\tyes\n")
+    (d / "m06_busco" / "synteny.tsv").write_text(
+        "chromosome\tlength\tn_busco\tbest_ref_chromosome\tfrac_on_best\torientation\trho\n"
+        + "".join(f"chr{i}\t1000000\t1\tchr{i}\t1.000\tNA\tNA\n" for i in range(1, 8))
+        + "unplaced\t500\t1\tchr2\t1.000\tNA\tNA\n")
+    png = report.synteny_dotplot(d, "S1")
+    assert png[:8] == b"\x89PNG\r\n\x1a\n"
+    assert aggregate.run([d, result_dir(tmp_path, "S2")], tmp_path / "c") == 0
+    assert "dotplot S1" in (tmp_path / "c" / "report.html").read_text()

@@ -20,7 +20,7 @@ inputs supplied. It runs on a single machine; wrap it in your own scheduler.
 | M2 | contiguity, anchoring to `chr1`–`chr7` | always | QUAST, Python |
 | M4 | telomeres (TTTAGGG) at chromosome ends | always | tidk |
 | M5 | organelle-derived sequence, rDNA arrays | always | mm2-plus, BLAST+ |
-| M6 | gene-space completeness, `fabales_odb12.2` | always | BUSCO + miniprot |
+| M6 | gene-space completeness, `fabales_odb12.2`; synteny dotplot against Caméor v2 (report only) | always | BUSCO + miniprot |
 | M7 | redundancy of unplaced scaffolds | unplaced ≥ 1 kb exist | mm2-plus |
 | M8 | QV, k-mer completeness, spectra-cn | Illumina or HiFi given | meryl, Merqury |
 | M9 | read-back structural validation | HiFi or ONT given | CRAQ |
@@ -209,6 +209,8 @@ development decisions.
 
 * The rDNA subunit library is `data/rdna_library.fasta` from
   [kavonrtep/CARP](https://github.com/kavonrtep/CARP) 1.9.0 (GPL-3.0).
+* The M6 synteny anchors are the BUSCO genes of *Pisum sativum* 'Caméor' v2
+  (GCA_977071245.1; Kreplak et al., Scientific Data).
 * The telomere karyoplot is adapted from `scripts/telomere_karyoplot.py` in
   [kavonrtep/ont_genome_assembly_pipeline](https://github.com/kavonrtep/ont_genome_assembly_pipeline)
   (GPL-3.0); origin and changes are in the header of `src/asmqc/karyoplot.py`.

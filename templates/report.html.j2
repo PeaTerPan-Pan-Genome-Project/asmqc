@@ -80,6 +80,19 @@
     {% for k, v in s.metrics %}<div><span>{{ k }}</span><span>{{ v }}</span></div>{% endfor %}
   </div>
   {% for n in s.notes %}<p>{{ n }}</p>{% endfor %}
+  {% if s.synteny %}
+  <p>Synteny with Caméor v2 (report only): best-matching Caméor chromosome and
+    orientation per chromosome, from shared Complete single-copy BUSCOs.</p>
+  <div class="scroll"><table>
+    <tr><th>chromosome</th><th>BUSCOs</th><th>Caméor</th><th>share</th><th>orientation</th>
+      <th>rho</th></tr>
+    {% for r in s.synteny %}
+    <tr><td>{{ r.chromosome }}</td><td class="num">{{ r.n_busco }}</td>
+      <td>{{ r.best_ref_chromosome }}</td><td class="num">{{ r.frac_on_best }}</td>
+      <td>{{ r.orientation }}</td><td class="num">{{ r.rho }}</td></tr>
+    {% endfor %}
+  </table></div>
+  {% endif %}
   <div class="{{ 'figs' if s.images|length > 1 else '' }}">
   {% for caption, uri in s.images %}
   <figure><img src="{{ uri }}" alt="{{ caption }}"><figcaption>{{ caption }}</figcaption></figure>
