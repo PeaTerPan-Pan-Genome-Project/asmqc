@@ -21,6 +21,7 @@ rule m04:
     input:
         windows=rules.m04_tidk.output,
         fai=W / "prep" / "asm.fa.fai",
+        gaps=rules.scan.output.gaps,
     output:
         W / "m04" / "summary.json",
     params:
@@ -32,4 +33,4 @@ rule m04:
         bench("m04", "m04")
     shell:
         "{params.pre}{PY} -m asmqc.m04_telomeres --windows {input.windows} --fai {input.fai}"
-        " --label {config[label]} --outdir {params.out} --work {W}/m04 > {log} 2>&1"
+        " --gaps {input.gaps} --label {config[label]} --outdir {params.out} --work {W}/m04 > {log} 2>&1"

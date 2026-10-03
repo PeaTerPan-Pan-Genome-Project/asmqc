@@ -52,6 +52,19 @@ def test_m04_arms_bands_and_interstitial():
         "wrong_orientation_telomere"] * 2
 
 
+def test_m04_t2t_requires_no_gap(tmp_path):
+    spec = {c: [(10_000, 0, 500), (LEN, 600, 0)] for c in CHROMOSOMES}
+    lengths = dict.fromkeys(CHROMOSOMES, LEN)
+    gaps_tsv = tmp_path / "gaps.tsv"
+    gaps_tsv.write_text("seq_id\tstart\tend\tlength\n"
+                        "chr1\t100\t199\t100\nchr1\t500\t509\t10\nchr3\t7\t16\t10\n")
+    gaps = m04.gap_counts(gaps_tsv)
+    assert gaps == {"chr1": 2, "chr3": 1}
+    values, _, arms, *_ = m04.evaluate(windows(spec), lengths, gaps)
+    assert values["m04_capped_arms"] == 14 and values["m04_t2t_chromosomes"] == 5
+    assert [c for c, ok in m04.t2t(arms, gaps).items() if not ok] == ["chr1", "chr3"]
+
+
 # --- M5 ----------------------------------------------------------------------
 def paf(q, qlen, qs, qe, t, matches, block, mapq=60, tp="P"):
     return "\t".join(map(str, [q, qlen, qs, qe, "+", t, 1000, 0, 100, matches, block, mapq,
@@ -139,6 +152,24 @@ def test_m06_full_table_busco6(tmp_path):
     counts, _ = m06.derived(rows)
     assert counts == {"m06_complete_on_unplaced": 1, "m06_dup_both_on_chrom": 0,
                       "m06_dup_any_on_unplaced": 1}
+
+
+def test_m06_busco_cds(tmp_path):
+    d = tmp_path / "single_copy_busco_sequences"
+    d.mkdir()
+    (d / "10at72025.gff").write_text(
+        "chr3\tminiprot\tmRNA\t100\t400\t756\t-\t.\tID=MP1\n"
+        "chr3\tminiprot\tCDS\t300\t400\t756\t-\t0\tParent=MP1\n"
+        "chr3\tminiprot\tCDS\t100\t200\t756\t-\t1\tParent=MP1\n"
+        "chr3\tminiprot\tstop_codon\t97\t99\t0\t-\t0\tParent=MP1\n")
+    (d / "9at72025.gff").write_text("chr1\tminiprot\tCDS\t1\t30\t9\t+\t0\tParent=MP2\n")
+    rows = m06.cds_rows(d)
+    assert rows == [("chr1", 0, 30, "9at72025", "+"), ("chr3", 99, 200, "10at72025", "-"),
+                    ("chr3", 299, 400, "10at72025", "-")]
+    m06.write_cds_bed(rows, tmp_path / "cds.bed.gz")
+    first = (tmp_path / "cds.bed.gz").read_bytes()
+    m06.write_cds_bed(rows, tmp_path / "cds.bed.gz")
+    assert (tmp_path / "cds.bed.gz").read_bytes() == first  # deterministic gzip
 
 
 def test_m06_lineage_checks(tmp_path):

@@ -4,6 +4,26 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions
 follow semantic versioning; results are comparable only within one
 `MAJOR.MINOR` version.
 
+## [Unreleased]
+
+### Changed
+
+- M4: a chromosome is T2T only if both arms are capped and it has no gap
+  (no N-run ≥ 10 bp). `telomeres.tsv` gains `chromosome_gaps` and `t2t`.
+- Report: every value has a plain label, unit and definition (tooltip and
+  table), with its `qc_summary.tsv` column name; module explanations
+  rewritten, in detail for M8, M9 and M11. Combined report column headers
+  carry the same labels and definitions.
+
+### Added
+
+- M6 writes `busco_cds.bed.gz`, the coding exons of the Complete
+  single-copy BUSCOs.
+- Report: at-a-glance values, per-chromosome table, rDNA karyoplot and
+  largest arrays (M5), CSE list (M9), homopolymer errors in BUSCO coding
+  exons with frameshift count and affected genes (M11), flag-code meanings,
+  glossary and output file guide.
+
 ## [0.1.0rc4] - 2026-10-02
 
 Fourth release candidate. Not validated against SPEC §11.2; results are not

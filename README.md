@@ -183,9 +183,13 @@ workdir, which lies inside the result directory.
 ## Reading the report
 
 * The **header** shows the ENA result (PASS/FAIL), flag counts and the read declarations.
-* **Flags** lists ENA-blocking flags and warnings; information flags are folded.
-* Each **module** section gives its numbers, a short paragraph on how to read them, and plots.
-* **Provenance** lists the command line, tool versions, reference md5s and parameters.
+* **At a glance** and **per chromosome** summarise the key values.
+* **Flags** lists ENA-blocking flags and warnings with the meaning of each code; information flags are folded.
+* Each **module** section explains what is measured, then lists every value with a plain label, unit,
+  definition and its `qc_summary.tsv` column, followed by tables and plots.
+* **Glossary**, **output files** and **provenance** (command line, tool versions, reference md5s, parameters) close the report.
+
+Hovering over a label shows its definition.
 
 For chromosome-level assemblies the scaffold N50 is about one chromosome;
 the contig N50 is the discriminating number. BUSCO completeness saturates

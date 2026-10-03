@@ -6,6 +6,7 @@ Usage:
 """
 
 import argparse
+import gzip
 import json
 import shutil
 from pathlib import Path
@@ -110,6 +111,25 @@ def derived(rows: list[dict]) -> tuple[dict, list[tuple]]:
     return counts, table
 
 
+def cds_rows(gff_dir: Path) -> list[tuple]:
+    """CDS exons of the complete single-copy BUSCOs (BUSCO's per-gene miniprot GFF),
+    as sorted BED rows: seq, start (0-based), end, busco_id, strand."""
+    rows = []
+    for gff in sorted(gff_dir.glob("*.gff")):
+        bid = gff.stem
+        for line in gff.read_text().splitlines():
+            f = line.split("\t")
+            if len(f) >= 7 and f[2] == "CDS":
+                rows.append((f[0], int(f[3]) - 1, int(f[4]), bid, f[6]))
+    return sorted(rows)
+
+
+def write_cds_bed(rows: list[tuple], path: Path) -> None:
+    with gzip.GzipFile(path, "wb", mtime=0) as gz:
+        for r in rows:
+            gz.write(("\t".join(map(str, r)) + "\n").encode())
+
+
 def summarise(busco_dir: Path, outdir: Path, work: Path, fai: Path | None = None) -> None:
     lineage = P["lineage"]
     summary_json = busco_dir / f"short_summary.specific.{lineage}.busco.json"
@@ -138,6 +158,8 @@ def summarise(busco_dir: Path, outdir: Path, work: Path, fai: Path | None = None
     module.write_tsv(outdir / "busco_derived.tsv",
                      ["busco_id", "status", "n_copies", "n_on_chromosomes", "n_on_unplaced",
                       "sequences"], table)
+    write_cds_bed(cds_rows(busco_dir / f"run_{lineage}" / "busco_sequences" /
+                           "single_copy_busco_sequences"), outdir / "busco_cds.bed.gz")
     anchors = synteny.anchors_path()
     if fai is not None and anchors.exists():  # report-only synteny against Caméor v2
         _, ref = synteny.read_anchors(anchors)

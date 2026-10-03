@@ -23,3 +23,7 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+
+[tool.ruff.lint.per-file-ignores]
+# a table of prose: multi-line descriptions are implicitly concatenated strings
+"src/asmqc/docs.py" = ["ISC004"]

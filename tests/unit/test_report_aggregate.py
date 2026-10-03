@@ -102,3 +102,52 @@ def test_synteny_dotplot_rendered(tmp_path):
     assert png[:8] == b"\x89PNG\r\n\x1a\n"
     assert aggregate.run([d, result_dir(tmp_path, "S2")], tmp_path / "c") == 0
     assert "dotplot S1" in (tmp_path / "c" / "report.html").read_text()
+
+
+def test_every_column_documented():
+    from asmqc import docs
+
+    missing = [c for c in schema.HEADER if c not in docs.COLUMNS]
+    assert not missing
+    assert not set(docs.COLUMNS) - set(schema.HEADER)
+    assert set(docs.MODULE_TEXT) == set(schema.MODULES)
+    assert set(docs.FLAGS) == set(fl.CODES)
+
+
+def test_fmt():
+    from asmqc import docs
+
+    assert docs.fmt("m01_total_bp", "4220827303") == "4,220,827,303 bp (4.22 Gb)"
+    assert docs.fmt("m01_n_seq", "1063") == "1,063"
+    assert docs.fmt("m06_complete_pct", "99.30") == "99.30 %"
+    assert docs.fmt("m08_kmer_coverage", "10") == "10 ×"
+    assert docs.fmt("m08_qv", "NA") == "not available"
+
+
+def test_busco_cds_errors(tmp_path):
+    d = tmp_path / "r"
+    (d / "m06_busco").mkdir(parents=True)
+    (d / "m11_homopolymer").mkdir()
+    with gzip.open(d / "m06_busco" / "busco_cds.bed.gz", "wt") as fh:
+        fh.write("chr1\t100\t200\tb1\t+\nchr1\t300\t400\tb1\t+\nchr2\t0\t1000\tb2\t-\n")
+    with gzip.open(d / "m11_homopolymer" / "errors.bed.gz", "wt") as fh:
+        fh.write("chr1\t150\t150\thp\tA\t9\t+1A\t50\t30\n"     # exon b1, frameshift
+                 "chr1\t250\t250\thp\tT\t8\t-1T\t50\t30\n"     # intron
+                 "chr1\t399\t402\tstr2\tAT\t6\t-2\t50\t30\n"   # exon end, frameshift
+                 "chr2\t500\t503\thp\tC\t7\t-3C\t50\t30\n"     # in frame
+                 "chr9\t5\t5\thp\tA\t5\t+1A\t50\t30\n")
+    e = report.busco_cds_errors(d)
+    assert (e["genes"], e["cds_bp"], e["hp"], e["str2"], e["frameshift"],
+            e["genes_affected"]) == (2, 1200, 2, 1, 2, 2)
+    assert [g["busco_id"] for g in e["worst"]] == ["b1", "b2"]
+    assert e["worst"][0]["examples"][0] == "+1A at 151 (9-bp run)"
+
+
+def test_render_assembly_explains(tmp_path):
+    d = result_dir(tmp_path, "S1")
+    row = summary.read_summary(d / "qc_summary.tsv")[1][0]
+    row |= {"m01_status": "ok", "m01_n_seq": "63", "m01_total_bp": "4220827303"}
+    summary.write_summary(d / "qc_summary.tsv", row)
+    html = report.render_assembly(d).read_text()
+    assert "Number of sequences" in html and "4,220,827,303 bp (4.22 Gb)" in html
+    assert "All FASTA records" in html and 'id="glossary"' in html and 'id="files"' in html

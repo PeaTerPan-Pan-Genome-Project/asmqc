@@ -253,7 +253,7 @@ If NCBI's FASTA formatting ever changes the file md5, verify the md5 of the
   m02_contiguity/  contiguity.tsv  per_chromosome.tsv  quast_report.tsv
   m04_telomeres/   telomeres.tsv  telomeres_unplaced.tsv  interstitial.tsv  tidk_windows.tsv  karyoplot.png
   m05_organelle_rdna/ organelle_scaffolds.tsv  organelle_on_chromosomes.tsv  rdna_arrays.tsv
-  m06_busco/       short_summary.json  full_table.tsv  busco_derived.tsv  synteny.tsv  synteny_points.tsv
+  m06_busco/       short_summary.json  full_table.tsv  busco_derived.tsv  busco_cds.bed.gz  synteny.tsv  synteny_points.tsv
   m07_redundancy/  redundancy.tsv
   m08_merqury/     merqury.qv  per_chromosome_qv.tsv  completeness.stats  asm_only_kmers.bed.gz  spectra-cn.png  spectra-asm.png
   m09_craq/        out_final.Report  CRE.bed  CSE.bed  craq_derived.tsv
@@ -385,21 +385,43 @@ If NCBI's FASTA formatting ever changes the file md5, verify the md5 of the
 **One self-contained file**: inline CSS, embedded PNGs, no external requests.
 Sections:
 
+Every value is shown with a plain-language label, its unit and a
+definition (as a tooltip and in the module tables), plus its
+`qc_summary.tsv` column name. The definitions live in
+`src/asmqc/docs.py`; a test fails if a column has none.
+
 1. **Header card:** label, assembly md5, version, date, `ena_rules` badge,
    flag counts, and the read types with their `reads_independent`
    declarations.
-2. **Flags:** every `ENA_BLOCKING` and `WARNING` flag (`INFO` collapsed).
-3. **Per module:** key numbers, a short "how to read this" paragraph, and
-   plots:
+2. **At a glance:** about a dozen key values.
+3. **Per chromosome:** length, contigs, gaps, contig N50, telomere status of
+   both arms, T2T, Complete BUSCOs, best-matching Caméor v2 chromosome and
+   QV, from whichever modules ran.
+4. **Flags:** every `ENA_BLOCKING` and `WARNING` flag (`INFO` collapsed),
+   with the meaning of each flag code.
+5. **Per module:** what the module measures and how to read it, the values,
+   tables and plots:
    - M2: cumulative contig length
-   - M4: telomere karyoplot
+   - M4: telomere karyoplot; interstitial arrays
+   - M5: rDNA karyoplot (arrays on chr1–chr7, marker area ∝ copies) and the
+     largest arrays
+   - M6: synteny dotplot and table
    - M7: bp per class
    - M8: spectra-cn and spectra-asm
-   - M11: errors by homopolymer length, stacked A/T vs G/C
-4. **Provenance:** versions, reference data, parameters and the command line.
+   - M9: list of CSE positions with their distance to an AGP join
+   - M11: errors by homopolymer length, stacked A/T vs G/C; errors inside
+     the coding exons of Complete single-copy BUSCOs (`busco_cds.bed.gz`,
+     M6): homopolymer and dinucleotide-repeat errors, errors per Mb of
+     exon, frameshifting errors (length not a multiple of 3), affected genes
+6. **Glossary**, **output file guide**, and **provenance** (versions,
+   reference data, parameters, command line).
+
+The report-only values (per-chromosome table, exon errors, cross-checks) are
+not in `qc_summary.tsv`.
 
 The combined report from `asmqc aggregate`:
-- one table with assemblies as rows and the columns grouped by module;
+- one table with assemblies as rows and the columns grouped by module,
+  headed by the plain labels with definitions as tooltips;
 - small multiples of the M4 karyoplots and the M11 plots;
 - M6 internal stop-codon % plotted against the M11 HP-error rate.
 
@@ -541,7 +563,8 @@ N50 is the discriminating number. The report says so.
      - No band within 50 kb → `absent`.
    - **end arm:** the mirror image; dominated by `TTTAGGG`.
    - Confirm tidk's forward/reverse convention on real data (§13).
-4. **T2T chromosome:** both arms `capped`.
+4. **T2T chromosome:** both arms `capped` **and no gap** (no N-run ≥ 10 bp)
+   in the chromosome.
 5. **Approximate array length:** (Σforward + Σreverse) × 7 bp of the terminal
    band. **Distance from the end:** band start, or sequence length − band end.
 6. **Interstitial arrays:** bands more than 50 kb from both ends →
@@ -557,7 +580,7 @@ N50 is the discriminating number. The report says so.
 - use the 50 kb rule; no reorientation.
 
 `telomeres.tsv` columns: chromosome, arm, status, distance_from_end_bp,
-approx_array_bp, fwd_repeats, rev_repeats.
+approx_array_bp, fwd_repeats, rev_repeats, chromosome_gaps, t2t.
 
 ### 8.5 Module 5: organelles and rDNA
 
@@ -626,6 +649,9 @@ busco --in ASM.fa --mode genome --lineage_dataset fabales_odb12.2 --offline \
   least one copy unplaced (`m06_dup_any_on_unplaced`, a likely false
   duplication).
 - Per-BUSCO detail in `busco_derived.tsv`; `full_table.tsv` is kept.
+- `busco_cds.bed.gz`: the coding exons (CDS) of the Complete single-copy
+  BUSCOs, from BUSCO's per-gene miniprot GFF. The report uses them to count
+  M11 errors inside conserved coding sequence (§7.4).
 
 **Report text:** in high-quality assemblies C % saturates near 100, so D % and
 the derived numbers carry the signal.
@@ -968,6 +994,7 @@ The concrete data and expected values are kept privately by the maintainers.
 | 2026-10-02 | M5 rDNA: copies need ≥ 50 % subunit coverage; arrays need ≥ 3 (45S) or ≥ 10 (5S) copies, smaller clusters counted as fragments (new columns `m05_rdna45s_fragments`, `m05_rdna5s_fragments`) |
 | 2026-10-02 | M6 synteny with Caméor v2 from BUSCO anchors (committed table, no reference sequence in the image); report only |
 | 2026-10-02 | CSI indexes for all BAMs and VCFs (pea chromosomes exceed the 2^29 BAI/TBI limit); CRAQ gets `.bai` links to CSI and a samtools shim |
+| 2026-10-03 | M4: T2T requires both arms capped and no gap (N-run ≥ 10 bp) |
 
 ## 13. Open points (to the maintainers before deciding)
 

@@ -22,12 +22,15 @@ td, th { white-space: nowrap; }
 </header>
 
 <h2 id="table">All assemblies</h2>
+<p class="muted">Hover over a column header for its definition and the <code>qc_summary.tsv</code>
+  column name. Definitions are also in each assembly's report.</p>
 <div class="card"><div class="scroll"><table>
   <tr>{% for g, cols in groups %}
     <th class="group" colspan="{{ cols|length }}">{{ g if g == "identity" else g|upper ~ " · " ~ titles[g] }}</th>
   {% endfor %}</tr>
   <tr>{% for g, cols in groups %}{% for c in cols %}
-    <th>{{ c if g == "identity" else c[4:] }}</th>{% endfor %}{% endfor %}</tr>
+    {% set d = docs.get(c, (c, "", "")) %}
+    <th title="{{ d[2] }} [{{ c }}]">{{ d[0] }}</th>{% endfor %}{% endfor %}</tr>
   {% for r in rows %}
   <tr>{% for g, cols in groups %}{% for c in cols %}
     {% set v = r[c] %}

@@ -14,7 +14,8 @@
   <h1>asmqc report: {{ row.label }}</h1>
   <p class="muted">asmqc {{ row.asmqc_version }} · run {{ row.run_date }} ·
     assembly md5 <code>{{ row.assembly_md5 }}</code></p>
-  <p>ENA rules <span class="badge {{ row.ena_rules }}">{{ row.ena_rules }}</span>
+  <p><span title="{{ ena.help }}">ENA submission rules</span>
+    <span class="badge {{ row.ena_rules }}">{{ row.ena_rules }}</span>
     · {{ row.n_flags_ena_blocking }} ENA-blocking · {{ row.n_flags_warning }}
     warning{{ '' if row.n_flags_warning == '1' else 's' }} · {{ row.n_flags_info }} info</p>
   {% set reads = manifest.inputs.reads %}
@@ -29,26 +30,72 @@
   {% else %}
   <p class="muted">No reads supplied: modules 8, 9 and 11 did not run.</p>
   {% endif %}
-  <nav>{% for s in sections %}<a href="#{{ s.id }}">{{ s.id }}</a>{% endfor %}
-    <a href="#flags">flags</a><a href="#provenance">provenance</a></nav>
+  <nav><a href="#glance">at a glance</a><a href="#chromosomes">chromosomes</a>
+    <a href="#flags">flags</a>{% for s in sections %}<a href="#{{ s.id }}">{{ s.id }}</a>{% endfor %}
+    <a href="#glossary">glossary</a><a href="#files">files</a>
+    <a href="#provenance">provenance</a></nav>
+  <p class="muted">Hover over a label (dotted underline or help cursor) for its definition.
+    Every value is also in <code>qc_summary.tsv</code> under the column name shown in grey.</p>
 </header>
+
+<h2 id="glance">At a glance</h2>
+<div class="card">
+  <div class="glance">
+    {% for m in glance %}
+    <div title="{{ m.help }}"><div class="v">{{ m.value }}</div><div class="l">{{ m.label }}</div></div>
+    {% endfor %}
+  </div>
+</div>
+
+{% if chromosomes %}
+<h2 id="chromosomes">Per chromosome</h2>
+<div class="card"><div class="scroll"><table>
+  <tr><th>Chromosome</th>
+    <th class="num" title="Chromosome length (M2)">Length</th>
+    <th class="num" title="Gap-free pieces (M2)">Contigs</th>
+    <th class="num" title="N-runs of ≥ 10 bp or AGP gaps (M2)">Gaps</th>
+    <th class="num" title="Contig N50 within the chromosome (M2)">Contig N50</th>
+    <th title="Telomere status of the start (p) arm (M4)">Start arm</th>
+    <th title="Telomere status of the end (q) arm (M4)">End arm</th>
+    <th title="Both arms capped and no gap (M4)">T2T</th>
+    <th class="num" title="Complete BUSCO genes on the chromosome (M6)">BUSCOs</th>
+    <th title="Caméor v2 chromosome with most shared BUSCOs, their share, orientation (M6, report only)">Caméor v2</th>
+    <th class="num" title="Merqury QV of the chromosome (M8)">QV</th></tr>
+  {% for r in chromosomes %}
+  <tr><td>{{ r.chromosome }}</td><td class="num">{{ r.length }}</td>
+    <td class="num">{{ r.contigs }}</td><td class="num">{{ r.gaps }}</td>
+    <td class="num">{{ r.contig_n50 }}</td><td>{{ r.start }}</td><td>{{ r.end }}</td>
+    <td>{% if r.t2t %}<span class="badge {{ 'ok' if r.t2t == 'yes' else 'NA' }}">{{ r.t2t }}</span>{% endif %}</td>
+    <td class="num">{{ "{:,}".format(r.busco) if r.busco != "" else "" }}</td>
+    <td>{{ r.cameor }}</td><td class="num">{{ r.qv }}</td></tr>
+  {% endfor %}
+</table></div></div>
+{% endif %}
 
 <h2 id="flags">Flags</h2>
 <div class="card">
   {% if blocking or warnings %}
   <div class="scroll"><table>
     <tr><th>severity</th><th>module</th><th>code</th><th>sequence</th><th>start</th>
-      <th>end</th><th>value</th><th>message</th></tr>
+      <th>end</th><th>value</th><th>message</th><th>meaning</th></tr>
     {% for f in blocking + warnings %}
     <tr><td><span class="badge {{ 'failed' if f.severity == 'ENA_BLOCKING' else 'warn' }}">
       {{ f.severity }}</span></td>
       <td>{{ f.module }}</td><td>{{ f.code }}</td><td>{{ f.seq_id }}</td>
       <td class="num">{{ f.start }}</td><td class="num">{{ f.end }}</td>
-      <td>{{ f.value }}</td><td>{{ f.message }}</td></tr>
+      <td>{{ f.value }}</td><td>{{ f.message }}</td>
+      <td class="muted">{{ flag_help.get(f.code, "") }}</td></tr>
     {% endfor %}
   </table></div>
   {% else %}
   <p>No ENA-blocking flags and no warnings.</p>
+  {% endif %}
+  {% set codes = (blocking + warnings + info)|map(attribute="code")|unique|list %}
+  {% if codes %}
+  <details><summary>What the flag codes mean</summary>
+    <table>{% for c in codes|sort %}<tr><td><code>{{ c }}</code></td>
+      <td>{{ flag_help.get(c, "") }}</td></tr>{% endfor %}</table>
+  </details>
   {% endif %}
   {% if info %}
   <details><summary>{{ info|length }} information flag(s)</summary>
@@ -75,20 +122,92 @@
   {% if s.status != "ok" %}
   <p class="muted">{{ s.reason or "" }}</p>
   {% else %}
-  <p>{{ s.text }}</p>
-  <div class="kv">
-    {% for k, v in s.metrics %}<div><span>{{ k }}</span><span>{{ v }}</span></div>{% endfor %}
-  </div>
+  <details class="explain" open><summary>What this module measures and how to read it</summary>
+    {% for para in s.text %}<p>{{ para }}</p>{% endfor %}
+  </details>
+  <div class="scroll"><table class="metrics">
+    {% for m in s.metrics %}
+    <tr><td title="{{ m.help }}">{{ m.label }}<br><code class="col">{{ m.col }}</code></td>
+      <td class="val">{{ m.value }}</td><td class="help">{{ m.help }}</td></tr>
+    {% endfor %}
+  </table></div>
   {% for n in s.notes %}<p>{{ n }}</p>{% endfor %}
+  {% if s.interstitial %}
+  <details><summary>{{ s.interstitial|length }} interstitial telomeric array(s)</summary>
+    <div class="scroll"><table>
+      <tr>{% for k in s.interstitial[0].keys() %}<th>{{ k|replace("_", " ") }}</th>{% endfor %}</tr>
+      {% for r in s.interstitial %}<tr>{% for v in r.values() %}<td>{{ v }}</td>{% endfor %}</tr>{% endfor %}
+    </table></div>
+  </details>
+  {% endif %}
+  {% if s.rdna %}
+  <p>Largest rDNA arrays (all clusters in <code>m05_organelle_rdna/rdna_arrays.tsv</code>):</p>
+  <div class="scroll"><table>
+    <tr><th>Family</th><th>Location</th><th class="num" title="Copies with ≥ 50 % of the subunit (45S counted by 18S)">Copies</th>
+      <th class="num" title="Distance from first to last copy">Span</th><th>Sequence type</th></tr>
+    {% for r in s.rdna %}
+    <tr><td>{{ r.family }}</td><td>{{ r.where }}</td><td class="num">{{ "{:,}".format(r.copies|int) }}</td>
+      <td class="num">{{ r.span }}</td><td>{{ r.context }}</td></tr>
+    {% endfor %}
+  </table></div>
+  {% endif %}
+  {% if s.cse %}
+  <details><summary>Structural errors (CSE): {{ s.cse|length }} position(s)</summary>
+    <p class="muted">Distance to the nearest AGP gap or contig join; within 10 kb counts as at a
+      scaffold join. Full lists: <code>m09_craq/CSE.bed</code>, <code>CRE.bed</code>.</p>
+    <div class="scroll"><table>
+      <tr><th>Location</th><th class="num">Distance to join</th><th>At join</th></tr>
+      {% for r in s.cse %}<tr><td>{{ r.where }}</td><td class="num">{{ r.distance }}</td>
+        <td>{{ r.near_agp_junction }}</td></tr>{% endfor %}
+    </table></div>
+  </details>
+  {% endif %}
+  {% if s.exons %}
+  {% set e = s.exons %}
+  <h4>Errors in conserved coding exons</h4>
+  <p>Coding exons (CDS) of the {{ "{:,}".format(e.genes) }} Complete single-copy BUSCO genes from M6
+    cover {{ e.cds }}. Homopolymer and dinucleotide-repeat errors from M11 that fall inside them:</p>
+  <div class="scroll"><table class="metrics">
+    <tr><td>Homopolymer errors in BUSCO exons</td><td class="val">{{ "{:,}".format(e.hp) }}</td>
+      <td class="help">Same definition as above, restricted to coding exons.</td></tr>
+    <tr><td>Dinucleotide-repeat errors in BUSCO exons</td><td class="val">{{ "{:,}".format(e.str2) }}</td><td class="help"></td></tr>
+    <tr><td>Errors per Mb of exon</td><td class="val">{{ "%.2f"|format(e.per_mb) }}</td>
+      <td class="help">Compare with the genome-wide homopolymer rate per Mb above. Coding sequence has
+        fewer long runs than the genome average, so a lower rate is expected. All exon bases are in the
+        denominator, also those outside the callable region, so this is a lower bound.</td></tr>
+    <tr><td>Frameshifting errors</td><td class="val">{{ "{:,}".format(e.frameshift) }}</td>
+      <td class="help">Indel length not a multiple of 3: shifts the reading frame and usually
+        truncates the protein.</td></tr>
+    <tr><td>BUSCO genes with an error</td><td class="val">{{ "{:,}".format(e.genes_affected) }}
+      ({{ "%.2f"|format(100 * e.genes_affected / e.genes) }} %)</td>
+      <td class="help">Share of the conserved genes damaged; extrapolates roughly to the whole gene set.</td></tr>
+  </table></div>
+  {% if e.worst %}
+  <details><summary>Genes with errors (up to {{ e.worst|length }})</summary>
+    <div class="scroll"><table>
+      <tr><th>BUSCO</th><th>Sequence</th><th class="num">Errors</th><th class="num">Frameshifting</th>
+        <th>Errors (change, position, run)</th><th>Gene</th></tr>
+      {% for g in e.worst %}<tr><td>{{ g.busco_id }}</td><td>{{ g.seq }}</td>
+        <td class="num">{{ g.errors }}</td><td class="num">{{ g.frameshift }}</td>
+        <td>{{ g.examples|join("; ") }}</td><td>{{ g.description }}</td></tr>{% endfor %}
+    </table></div>
+  </details>
+  {% endif %}
+  {% endif %}
   {% if s.synteny %}
   <p>Synteny with Caméor v2 (report only): best-matching Caméor chromosome and
     orientation per chromosome, from shared Complete single-copy BUSCOs.</p>
   <div class="scroll"><table>
-    <tr><th>chromosome</th><th>BUSCOs</th><th>Caméor</th><th>share</th><th>orientation</th>
-      <th>rho</th></tr>
+    <tr><th>Chromosome</th>
+      <th class="num" title="Complete single-copy BUSCOs shared with Caméor v2">Shared BUSCOs</th>
+      <th title="Caméor v2 chromosome holding most of them">Best Caméor v2 chromosome</th>
+      <th class="num" title="Share of the shared BUSCOs on that chromosome; below about 90 % points to a translocation or misjoin">Share on it</th>
+      <th title="forward: ρ ≥ 0.5; reverse: ρ ≤ −0.5 (the chromosome runs opposite to Caméor); mixed: in between">Orientation</th>
+      <th class="num" title="Spearman correlation of BUSCO positions on the two chromosomes: +1 same order, −1 reversed order; values nearer 0 mean rearranged order">Spearman ρ</th></tr>
     {% for r in s.synteny %}
-    <tr><td>{{ r.chromosome }}</td><td class="num">{{ r.n_busco }}</td>
-      <td>{{ r.best_ref_chromosome }}</td><td class="num">{{ r.frac_on_best }}</td>
+    <tr><td>{{ r.chromosome }}</td><td class="num">{{ "{:,}".format(r.n_busco|int) }}</td>
+      <td>{{ r.best_ref_chromosome }}</td>
+      <td class="num">{{ "%.1f %%"|format(100 * r.frac_on_best|float) if r.frac_on_best != "NA" else "NA" }}</td>
       <td>{{ r.orientation }}</td><td class="num">{{ r.rho }}</td></tr>
     {% endfor %}
   </table></div>
@@ -101,6 +220,16 @@
   {% endif %}
 </section>
 {% endfor %}
+
+<h2 id="glossary">Glossary</h2>
+<div class="card"><dl class="gloss">
+  {% for term, text in glossary %}<dt>{{ term }}</dt><dd>{{ text }}</dd>{% endfor %}
+</dl></div>
+
+<h2 id="files">Output files</h2>
+<div class="card"><div class="scroll"><table>
+  {% for path, text in files %}<tr><td><code>{{ path }}</code></td><td>{{ text }}</td></tr>{% endfor %}
+</table></div></div>
 
 <h2 id="provenance">Provenance</h2>
 <div class="card">

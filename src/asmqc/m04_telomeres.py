@@ -5,8 +5,10 @@ counts the search string TTTAGGG, reverse_repeat_number its reverse
 complement CCCTAAA; `window` is the window end, capped at the sequence length.
 A capped start arm is CCCTAAA-dominated, a capped end arm TTTAGGG-dominated.
 
-Usage: python -m asmqc.m04_telomeres --windows TSV --fai FAI [--label L] --outdir DIR
-           --work DIR
+A T2T chromosome has both arms capped and no gap (no N-run >= 10 bp).
+
+Usage: python -m asmqc.m04_telomeres --windows TSV --fai FAI --gaps GAPS_TSV [--label L]
+           --outdir DIR --work DIR
 """
 
 import argparse
@@ -72,7 +74,23 @@ def classify_arm(band: Band | None, distance: int | None, capped_motif: str) -> 
     return "capped" if capped else "wrong_orientation"
 
 
-def evaluate(windows, lengths: dict[str, int]):
+def gap_counts(path: Path) -> dict[str, int]:
+    """N-runs >= 10 bp per sequence, from the shared scan's gaps.tsv."""
+    out: dict[str, int] = {}
+    with path.open(newline="") as fh:
+        for r in csv.DictReader(fh, delimiter="\t"):
+            out[r["seq_id"]] = out.get(r["seq_id"], 0) + 1
+    return out
+
+
+def t2t(arms: list[tuple], gaps: dict[str, int]) -> dict[str, bool]:
+    """Chromosome -> both arms capped and no gap."""
+    status = {(a[0], a[1]): a[2] for a in arms}
+    return {c: status[(c, "start")] == status[(c, "end")] == "capped" and gaps.get(c, 0) == 0
+            for c in CHROMOSOMES}
+
+
+def evaluate(windows, lengths: dict[str, int], gaps: dict[str, int] | None = None):
     by_seq = bands(windows)
     term = P["terminal_bp"]
     arms, flags, interstitial, unplaced = [], [], [], []
@@ -104,11 +122,9 @@ def evaluate(windows, lengths: dict[str, int]):
                                   ("end", bs[-1], n - bs[-1].end)):
             if dist <= term:
                 unplaced.append((seq, n, end_name, dist, b.fwd, b.rev, b.approx_bp))
-    status_of = {(a[0], a[1]): a[2] for a in arms}
     values = {
         "m04_capped_arms": sum(a[2] == "capped" for a in arms),
-        "m04_t2t_chromosomes": sum(status_of[(c, "start")] == status_of[(c, "end")] == "capped"
-                                   for c in CHROMOSOMES),
+        "m04_t2t_chromosomes": sum(t2t(arms, gaps or {}).values()),
         "m04_wrong_orientation_arms": sum(a[2] == "wrong_orientation" for a in arms),
         "m04_interstitial_arrays": len(interstitial),
         "m04_unplaced_with_telomere": len({u[0] for u in unplaced}),
@@ -120,17 +136,22 @@ def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--windows", type=Path, required=True)
     ap.add_argument("--fai", type=Path, required=True)
+    ap.add_argument("--gaps", type=Path, required=True, help="scan gaps.tsv (N-runs >= 10 bp)")
     ap.add_argument("--label", default="")
     ap.add_argument("--outdir", type=Path, required=True)
     ap.add_argument("--work", type=Path, required=True)
     args = ap.parse_args(argv)
 
     lengths = module.read_fai(args.fai)
-    values, flags, arms, inter, unpl, by_seq = evaluate(read_windows(args.windows), lengths)
+    gaps = gap_counts(args.gaps)
+    values, flags, arms, inter, unpl, by_seq = evaluate(read_windows(args.windows), lengths,
+                                                        gaps)
+    is_t2t = t2t(arms, gaps)
     out = args.outdir
     module.write_tsv(out / "telomeres.tsv",
                      ["chromosome", "arm", "status", "distance_from_end_bp", "approx_array_bp",
-                      "fwd_repeats", "rev_repeats"], arms)
+                      "fwd_repeats", "rev_repeats", "chromosome_gaps", "t2t"],
+                     (a + (gaps.get(a[0], 0), "yes" if is_t2t[a[0]] else "no") for a in arms))
     module.write_tsv(out / "interstitial.tsv",
                      ["chromosome", "start", "end", "fwd_repeats", "rev_repeats",
                       "approx_array_bp"], inter)

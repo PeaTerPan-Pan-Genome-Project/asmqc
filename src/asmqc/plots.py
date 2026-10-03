@@ -176,3 +176,36 @@ def dotplot(pts: list[dict], ref_lengths: dict[str, int], lengths: dict[str, int
         ax.set_ylabel("assembly chromosomes (u = unplaced)", color=INK2, fontsize=9)
         ax.legend(loc="upper left", fontsize=7, markerscale=6, frameon=False, labelcolor=INK)
     return _png(fig)
+
+
+def rdna_karyoplot(arrays: list[dict], lengths: dict[str, int]) -> bytes:
+    """rDNA arrays on chr1-chr7: one bar per chromosome, a marker per array
+    (slot 1 45S, slot 2 5S), marker area proportional to copies."""
+    fig, ax = _figure(width=6.4, height=3.4)
+    ax.grid(False)
+    chroms = [c for c in CHROMS if c in lengths]
+    longest = max(lengths[c] for c in chroms)
+    for i, c in enumerate(chroms):
+        ax.plot([0, lengths[c]], [i, i], color=GRID, lw=6, solid_capstyle="round", zorder=1)
+    top = max([int(a["copies"]) for a in arrays if a["seq_id"] in chroms] or [1])
+    for fam, colour, dy in (("45S", SERIES[0], -0.2), ("5S", SERIES[1], 0.2)):
+        pts = [(int(a["start"]) + int(a["end"]), chroms.index(a["seq_id"]), int(a["copies"]))
+               for a in arrays if a["family"] == fam and a["seq_id"] in chroms]
+        if pts:
+            ax.scatter([p[0] / 2 for p in pts], [p[1] + dy for p in pts],
+                       s=[6 + 160 * p[2] / top for p in pts], color=colour, alpha=0.8,
+                       edgecolors=SURFACE, linewidths=0.5, zorder=2, label=f"{fam} array")
+    ax.set_yticks(range(len(chroms)), chroms, fontsize=8, color=INK2)
+    ax.invert_yaxis()
+    ticks = [t for t in range(0, longest + 1, 100_000_000)]
+    ax.set_xticks(ticks, [_bp(t) if t else "0" for t in ticks])
+    ax.set_xlim(-longest * 0.01, longest * 1.01)
+    ax.tick_params(length=0)
+    ax.spines["left"].set_visible(False)
+    leg = ax.legend(loc="lower left", bbox_to_anchor=(0.62, 1.0), ncol=2, fontsize=7,
+                    frameon=False, labelcolor=INK)
+    for h in leg.legend_handles:
+        h.set_sizes([30])
+    ax.set_title("rDNA arrays (marker area ∝ assembled copies)", color=INK, fontsize=9,
+                 loc="left")
+    return _png(fig)

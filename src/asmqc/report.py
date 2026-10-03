@@ -12,12 +12,13 @@ import bisect
 import csv
 import gzip
 import json
+import re
 from pathlib import Path
 
 import jinja2
 
+from asmqc import docs, plots, schema, summary
 from asmqc import flags as fl
-from asmqc import plots, schema, summary
 
 MODULE_TITLES = {
     "m01": "Integrity, format and ENA rules",
@@ -31,48 +32,6 @@ MODULE_TITLES = {
     "m11": "Homopolymer and short-STR errors",
 }
 
-HOW_TO_READ = {
-    "m01": "ENA rules fail on any sequence shorter than 20 bp, any leading or trailing N, "
-           "duplicate names and non-IUPAC characters; everything else is a warning or "
-           "information. Round lengths and round AGP cut coordinates point to breaks placed on "
-           "a fixed grid during manual Hi-C curation; the chance rate of a round cut is about "
-           "0.1 %. They never affect the ENA result.",
-    "m02": "In a chromosome-level assembly the scaffold N50 is about the length of one "
-           "chromosome; the contig N50 is the discriminating number. Contigs are the AGP "
-           "components when the AGP matches the FASTA, otherwise the pieces between runs of "
-           "at least 10 N. A difference between the two contig N50 values means N-runs inside "
-           "AGP components.",
-    "m04": "An arm is capped when a telomeric band lies within 50 kb of the end and is "
-           "dominated by the expected strand (CCCTAAA at the start, TTTAGGG at the end). A "
-           "band of the other strand is reported as wrong orientation. Interstitial arrays "
-           "can be genuine in pea. Unplaced sequences with a terminal band are chromosome "
-           "ends that exist but were not anchored.",
-    "m05": "Report only. Nuclear insertions of organelle DNA are real biology; a very large "
-           "block on a chromosome can indicate a misjoin. The 45S NORs are expected on chr4 "
-           "and chr7. Assembled rDNA copy number measures how much of each array was "
-           "captured, not the copy number in the plant.",
-    "m06": "In high-quality assemblies the complete percentage saturates near 100, so the "
-           "duplicated percentage and the placement of complete and duplicated BUSCOs carry "
-           "the signal. A duplicated BUSCO with a copy on an unplaced sequence is a likely "
-           "false duplication. The internal stop-codon percentage tracks frameshifting "
-           "indels in genes.",
-    "m07": "A measurement, never a purge. A scaffold is a duplicate only when one collinear "
-           "alignment covers at least 90 % of it at 99 % identity and MAPQ 20; summed "
-           "coverage would call repetitive scaffolds duplicates in a genome that is about "
-           "85 % repeats.",
-    "m08": "QV and completeness compare assembly k-mers (k = 21) with read k-mers. QVs are "
-           "comparable only between assemblies with the same reads declaration. Below 20x "
-           "k-mer coverage the numbers are less reliable.",
-    "m09": "CRAQ classifies clipped read alignments as regional (CRE) or structural (CSE) "
-           "errors; R-AQI and S-AQI summarise them per Mb (100 = none). A structural "
-           "breakpoint near an AGP gap or junction suggests a scaffolding error; one inside "
-           "a contig suggests an assembler error.",
-    "m11": "Hom-alt indels in homopolymer runs and dinucleotide repeats, called from accurate "
-           "reads in the callable region. An insertion relative to the assembly means the "
-           "assembled run is too short, the typical error of ONT-based assemblies. "
-           "Heterozygous calls in an inbred line mostly reflect mismapping in repeats and are "
-           "never counted as errors.",
-}
 
 
 # --- loading -------------------------------------------------------------------------
@@ -155,6 +114,168 @@ def synteny_dotplot(res: Path, label: str, small: bool = False) -> bytes | None:
     return plots.dotplot(pts, ref_lengths, lengths, title, small=small)
 
 
+# --- explicit values ------------------------------------------------------------------
+GLANCE = ["m01_total_bp", "m02_anchored_pct", "m02_contig_n50", "m01_n_gaps_ge10",
+          "m04_t2t_chromosomes", "m04_capped_arms", "m06_complete_pct", "m06_duplicated_pct",
+          "m08_qv", "m08_completeness_pct", "m09_r_aqi", "m09_s_aqi", "m11_hp_errors_per_mb"]
+
+
+def metric(col: str, raw: str) -> dict:
+    """A value with its plain label and description (docs.COLUMNS)."""
+    label, _, help_ = docs.COLUMNS.get(col, (col, "", ""))
+    return {"col": col, "label": label, "value": docs.fmt(col, raw), "help": help_}
+
+
+def at_a_glance(row: dict) -> list[dict]:
+    out = []
+    for c in GLANCE:
+        if row.get(c, "NA") == "NA":
+            continue
+        m = metric(c, row[c])
+        if docs.COLUMNS[c][1] == "bp":  # short form on the cards; full value in the tooltip
+            m["value"] = docs.human_bp(int(row[c]))
+            m["help"] = f"{int(row[c]):,} bp. {m['help']}"
+        out.append(m)
+    return out
+
+
+def per_chromosome(res: Path) -> list[dict]:
+    """One row per chromosome from M2, M4, M6 and M8 outputs (whatever exists)."""
+    from asmqc.validate import CHROMOSOMES
+
+    m2 = {r["chromosome"]: r for r in read_tsv(res / "m02_contiguity" / "per_chromosome.tsv")}
+    tel: dict[str, dict] = {}
+    for r in read_tsv(res / "m04_telomeres" / "telomeres.tsv"):
+        tel.setdefault(r["chromosome"], {})[r["arm"]] = r
+    syn = {r["chromosome"]: r for r in read_tsv(res / "m06_busco" / "synteny.tsv")}
+    qv = {r["seq_id"]: r for r in read_tsv(res / "m08_merqury" / "per_chromosome_qv.tsv")}
+    busco: dict[str, int] = {}
+    table = res / "m06_busco" / "full_table.tsv"
+    if table.exists():
+        from asmqc.m06_busco import read_full_table
+
+        for r in read_full_table(table):
+            if r["status"] == "Complete":
+                busco[r["sequence"]] = busco.get(r["sequence"], 0) + 1
+    rows = []
+    for c in CHROMOSOMES:
+        if c not in m2 and c not in tel:
+            continue
+        r2, t, s = m2.get(c, {}), tel.get(c, {}), syn.get(c, {})
+        rows.append({
+            "chromosome": c,
+            "length": docs.human_bp(int(r2["length"])) if r2 else "",
+            "contigs": r2.get("contigs", ""),
+            "gaps": r2.get("gaps", ""),
+            "contig_n50": docs.human_bp(int(r2["contig_n50"])) if r2 else "",
+            "start": t.get("start", {}).get("status", "").replace("_", " "),
+            "end": t.get("end", {}).get("status", "").replace("_", " "),
+            "t2t": t.get("start", {}).get("t2t") or (  # results before 0.1.0rc5
+                ("yes" if t.get("start", {}).get("status") == t.get("end", {}).get("status")
+                 == "capped" and r2.get("gaps") == "0" else "no") if t and r2 else ""),
+            "busco": busco.get(c, ""),
+            "cameor": (f"{s['best_ref_chromosome']} ({float(s['frac_on_best']):.0%}, "
+                       f"{s['orientation']})" if s and s["best_ref_chromosome"] != "NA"
+                       else ""),
+            "qv": f"{float(qv[c]['qv']):.1f}" if c in qv else "",
+        })
+    return rows
+
+
+def rdna_arrays(res: Path, n: int = 15) -> list[dict]:
+    rows = [r for r in read_tsv(res / "m05_organelle_rdna" / "rdna_arrays.tsv")
+            if r.get("class", "array") == "array"]
+    rows.sort(key=lambda r: -int(r["copies"]))
+    for r in rows:
+        r["span"] = docs.human_bp(int(r["end"]) - int(r["start"]) + 1)
+        r["where"] = f"{r['seq_id']}:{int(r['start']):,}-{int(r['end']):,}"
+    return rows[:n]
+
+
+def rdna_plot(res: Path) -> bytes | None:
+    arrays = [r for r in read_tsv(res / "m05_organelle_rdna" / "rdna_arrays.tsv")
+              if r.get("class", "array") == "array"]
+    lengths = {r["seq_id"]: int(r["length"])
+               for r in read_tsv(res / "m01_integrity" / "sequences.tsv")}
+    if not arrays or not lengths:
+        return None
+    return plots.rdna_karyoplot(arrays, lengths)
+
+
+def cse_rows(res: Path, n: int = 100) -> list[dict]:
+    rows = read_tsv(res / "m09_craq" / "craq_derived.tsv")
+    for r in rows:
+        r["where"] = f"{r['seq_id']}:{int(r['start']):,}-{int(r['end']):,}"
+        d = r["distance_to_agp_junction_bp"]
+        r["distance"] = f"{int(d):,} bp" if d not in ("NA", "") else "no AGP"
+    return rows[:n]
+
+
+CHANGE_RE = re.compile(r"([+-])(\d+)")
+
+
+def busco_cds_errors(res: Path, top: int = 20) -> dict | None:
+    """M11 homopolymer and dinucleotide-repeat errors inside BUSCO coding exons (M6)."""
+    cds_file = res / "m06_busco" / "busco_cds.bed.gz"
+    err_file = res / "m11_homopolymer" / "errors.bed.gz"
+    if not (cds_file.exists() and err_file.exists()):
+        return None
+    cds: dict[str, list[tuple[int, int, str]]] = {}
+    genes = set()
+    with gzip.open(cds_file, "rt") as fh:
+        for line in fh:
+            seq, s, e, bid = line.split("\t")[:4]
+            cds.setdefault(seq, []).append((int(s), int(e), bid))
+            genes.add(bid)
+    cds_bp = 0
+    starts = {}
+    for seq, ivs in cds.items():
+        ivs.sort()
+        starts[seq] = [s for s, _, _ in ivs]
+        end = -1
+        for s, e, _ in ivs:  # merged length
+            cds_bp += max(0, e - max(s, end))
+            end = max(end, e)
+    hits: dict[str, dict] = {}
+    n = {"hp": 0, "str2": 0, "frameshift": 0}
+    with gzip.open(err_file, "rt") as fh:
+        for line in fh:
+            f = line.rstrip("\n").split("\t")
+            seq, pos, cls = f[0], int(f[1]), f[3]
+            ivs = cds.get(seq)
+            if not ivs:
+                continue
+            k = bisect.bisect_right(starts[seq], pos) - 1
+            if k < 0 or not (ivs[k][0] <= pos < ivs[k][1]):
+                continue
+            m = CHANGE_RE.match(f[6])
+            size = int(m[2]) if m else 0
+            shift = size % 3 != 0
+            n[cls] = n.get(cls, 0) + 1
+            n["frameshift"] += shift
+            g = hits.setdefault(ivs[k][2], {"busco_id": ivs[k][2], "seq": seq, "errors": 0,
+                                            "frameshift": 0, "examples": []})
+            g["errors"] += 1
+            g["frameshift"] += shift
+            if len(g["examples"]) < 3:
+                g["examples"].append(f"{f[6]} at {pos + 1:,} ({f[5]}-bp run)" if cls == "hp"
+                                     else f"{f[6]} at {pos + 1:,}")
+    desc = {}
+    table = res / "m06_busco" / "full_table.tsv"
+    if table.exists():
+        from asmqc.m06_busco import read_full_table
+
+        desc = {r["busco_id"]: r.get("Description", "") for r in read_full_table(table)}
+    worst = sorted(hits.values(), key=lambda g: (-g["errors"], g["busco_id"]))[:top]
+    for g in worst:
+        g["description"] = desc.get(g["busco_id"], "")
+    total = n["hp"] + n["str2"]
+    return {"genes": len(genes), "cds_bp": cds_bp, "cds": docs.human_bp(cds_bp),
+            "hp": n["hp"], "str2": n["str2"], "frameshift": n["frameshift"],
+            "genes_affected": len(hits), "per_mb": total / (cds_bp / 1e6) if cds_bp else 0,
+            "worst": worst}
+
+
 # --- per-assembly report -------------------------------------------------------------
 def module_sections(data: dict, contig_lengths: list[int] | None) -> list[dict]:
     row, res = data["row"], data["dir"]
@@ -163,10 +284,9 @@ def module_sections(data: dict, contig_lengths: list[int] | None) -> list[dict]:
         status = row[f"{m}_status"]
         reason = data["manifest"].get("modules", {}).get(m, {}).get("reason")
         sec = {"id": m, "title": MODULE_TITLES[m], "status": status, "reason": reason,
-               "text": HOW_TO_READ[m], "metrics": [], "images": [], "notes": []}
+               "text": docs.MODULE_TEXT[m], "metrics": [], "images": [], "notes": []}
         if status == "ok":
-            sec["metrics"] = [(c.removeprefix(f"{m}_").replace("_", " "), row[c])
-                              for c in schema.module_columns(m)]
+            sec["metrics"] = [metric(c, row[c]) for c in schema.module_columns(m)]
         sections.append(sec)
         if status != "ok":
             continue
@@ -176,6 +296,14 @@ def module_sections(data: dict, contig_lengths: list[int] | None) -> list[dict]:
         elif m == "m04":
             sec["images"].append(("Telomere karyoplot",
                                   file_uri(res / "m04_telomeres" / "karyoplot.png")))
+            sec["interstitial"] = read_tsv(res / "m04_telomeres" / "interstitial.tsv")
+        elif m == "m05":
+            rp = rdna_plot(res)
+            if rp:
+                caption = ("rDNA arrays on chr1–chr7 (marker area ∝ copies; arrays on unplaced "
+                           "sequences are in the table)")
+                sec["images"].append((caption, png_uri(rp)))
+            sec["rdna"] = rdna_arrays(res)
         elif m == "m06":
             dp = synteny_dotplot(res, row["label"])
             if dp:
@@ -196,18 +324,26 @@ def module_sections(data: dict, contig_lengths: list[int] | None) -> list[dict]:
         elif m == "m08":
             if row["m08_reads_independent"] == "no":
                 sec["notes"].append("The reads were used to build the assembly: the QV is a "
-                                    "self-consistency QV.")
+                                    "self-consistency QV, higher than the true accuracy.")
+            if row["m08_low_coverage"] == "yes":
+                sec["notes"].append(f"k-mer coverage is {row['m08_kmer_coverage']}×, below "
+                                    "20×: completeness is underestimated and the QV less "
+                                    "reliable.")
             sec["images"] += [("Spectra-cn", file_uri(res / "m08_merqury" / "spectra-cn.png")),
                               ("Spectra-asm",
                                file_uri(res / "m08_merqury" / "spectra-asm.png"))]
+        elif m == "m09":
+            sec["cse"] = cse_rows(res)
         elif m == "m11":
             rows = read_tsv(res / "m11_homopolymer" / "errors.tsv")
             sec["images"].append(("HP errors by run length", png_uri(
                 plots.hp_errors(rows, "hom-alt homopolymer errors"))))
+            sec["exons"] = busco_cds_errors(res)
             cc = asm_only_near_errors(res)
             if cc and cc[1]:
                 sec["notes"].append(f"Merqury assembly-only k-mers within 20 bp of an error: "
-                                    f"{cc[0]} of {cc[1]} ({100 * cc[0] / cc[1]:.1f} %).")
+                                    f"{cc[0]:,} of {cc[1]:,} ({100 * cc[0] / cc[1]:.1f} %). "
+                                    "Errors found by both methods are the most certain.")
         sec["images"] = [(c, u) for c, u in sec["images"] if u]
     return sections
 
@@ -232,6 +368,9 @@ def render_assembly(res: Path, work: Path | None = None) -> Path:
         warnings=[f for f in flags if f.severity == fl.WARNING],
         info=[f for f in flags if f.severity == fl.INFO],
         sections=module_sections(data, contig_lengths),
+        glance=at_a_glance(data["row"]), chromosomes=per_chromosome(data["dir"]),
+        flag_help=docs.FLAGS, glossary=docs.GLOSSARY, files=docs.FILES,
+        ena=metric("ena_rules", data["row"]["ena_rules"]),
         params=json.dumps(data["manifest"].get("parameters", {}), indent=1))
     out = res / "report.html"
     out.write_text(html)
@@ -260,7 +399,7 @@ def render_combined(results: list[dict], out: Path) -> Path:
     scatter = png_uri(plots.scatter(points, "M6 internal stop codons (% of BUSCOs)",
                                     "M11 HP errors per Mb")) if points else None
     html = environment().get_template("combined.html.j2").render(
-        rows=[r["row"] for r in results], groups=groups, titles=MODULE_TITLES,
+        rows=[r["row"] for r in results], groups=groups, titles=MODULE_TITLES, docs=docs.COLUMNS,
         karyoplots=karyoplots, hp_plots=hp_plots, dotplots=dotplots, scatter=scatter,
         n_points=len(points))
     path = out / "report.html"
