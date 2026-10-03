@@ -214,7 +214,7 @@ def cse_rows(res: Path, n: int = 100) -> list[dict]:
 CHANGE_RE = re.compile(r"([+-])(\d+)")
 
 
-def busco_cds_errors(res: Path, top: int = 20) -> dict | None:
+def busco_cds_errors(res: Path, top: int = 20, flank: int = 100) -> dict | None:
     """M11 homopolymer and dinucleotide-repeat errors inside BUSCO coding exons (M6)."""
     cds_file = res / "m06_busco" / "busco_cds.bed.gz"
     err_file = res / "m11_homopolymer" / "errors.bed.gz"
@@ -237,7 +237,7 @@ def busco_cds_errors(res: Path, top: int = 20) -> dict | None:
             cds_bp += max(0, e - max(s, end))
             end = max(end, e)
     hits: dict[str, dict] = {}
-    n = {"hp": 0, "str2": 0, "frameshift": 0}
+    n = {"hp": 0, "str2": 0, "frameshift": 0, "flank": 0}
     with gzip.open(err_file, "rt") as fh:
         for line in fh:
             f = line.rstrip("\n").split("\t")
@@ -245,9 +245,13 @@ def busco_cds_errors(res: Path, top: int = 20) -> dict | None:
             ivs = cds.get(seq)
             if not ivs:
                 continue
-            k = bisect.bisect_right(starts[seq], pos) - 1
-            if k < 0 or not (ivs[k][0] <= pos < ivs[k][1]):
+            k = bisect.bisect_right(starts[seq], pos + flank) - 1
+            near = [iv for iv in ivs[max(0, k - 3):k + 1] if iv[0] - flank <= pos < iv[1] + flank]
+            inside = [iv for iv in near if iv[0] <= pos < iv[1]]
+            if not inside:
+                n["flank"] += bool(near)
                 continue
+            k = ivs.index(inside[0])
             m = CHANGE_RE.match(f[6])
             size = int(m[2]) if m else 0
             shift = size % 3 != 0
@@ -272,6 +276,7 @@ def busco_cds_errors(res: Path, top: int = 20) -> dict | None:
     total = n["hp"] + n["str2"]
     return {"genes": len(genes), "cds_bp": cds_bp, "cds": docs.human_bp(cds_bp),
             "hp": n["hp"], "str2": n["str2"], "frameshift": n["frameshift"],
+            "flank": n["flank"], "flank_bp": flank,
             "genes_affected": len(hits), "per_mb": total / (cds_bp / 1e6) if cds_bp else 0,
             "worst": worst}
 
@@ -339,6 +344,13 @@ def module_sections(data: dict, contig_lengths: list[int] | None) -> list[dict]:
             sec["images"].append(("HP errors by run length", png_uri(
                 plots.hp_errors(rows, "hom-alt homopolymer errors"))))
             sec["exons"] = busco_cds_errors(res)
+            stop = row.get("m06_internal_stop_pct", schema.NA)
+            if sec["exons"] and stop != schema.NA:
+                sec["notes"].append(
+                    f"M6 reports an internal stop codon in {stop} % of Complete BUSCOs; M11 "
+                    f"finds {sec['exons']['frameshift']:,} frameshifting errors in BUSCO exons. "
+                    "Stops without a matching M11 error have other causes: errors outside the "
+                    "callable region or of other types, pseudogenes, or gene-model artefacts.")
             cc = asm_only_near_errors(res)
             if cc and cc[1]:
                 sec["notes"].append(f"Merqury assembly-only k-mers within 20 bp of an error: "

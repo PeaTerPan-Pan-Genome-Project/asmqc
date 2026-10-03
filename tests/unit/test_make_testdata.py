@@ -91,7 +91,7 @@ def test_telomere_arms(data):
     seqs = fasta(data / "asm.fa")
     e = expected(data)["m04"]
     assert e["capped_arms"] == 12 and e["wrong_orientation_arms"] == 1
-    assert e["t2t_chromosomes"] == 5
+    assert e["t2t_chromosomes"] == 0  # every synthetic chromosome has a gap (SPEC §8.4)
     for chrom, arms in e["arms"].items():
         for arm, a in arms.items():
             if a["status"] == "absent":

@@ -139,6 +139,7 @@ def test_busco_cds_errors(tmp_path):
     e = report.busco_cds_errors(d)
     assert (e["genes"], e["cds_bp"], e["hp"], e["str2"], e["frameshift"],
             e["genes_affected"]) == (2, 1200, 2, 1, 2, 2)
+    assert e["flank"] == 1  # the intron error at 250 is within 100 bp of an exon
     assert [g["busco_id"] for g in e["worst"]] == ["b1", "b2"]
     assert e["worst"][0]["examples"][0] == "+1A at 151 (9-bp run)"
 

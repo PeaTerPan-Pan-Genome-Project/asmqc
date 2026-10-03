@@ -343,3 +343,17 @@ Large chromosomes (2026-10-02). The JI1006 run with `0.1.0rc3` failed at
 Test: `tests/unit/test_large_chromosomes.py` (a 700 Mb header, a read at
 600 Mb: BAI fails, our CSI path and the shim work).
 Released as `0.1.0rc4`.
+
+### Explicit report and T2T rule (2026-10-03)
+
+After the first full JI1006 run the report was made readable without the
+specification: `src/asmqc/docs.py` holds a label, unit and definition for
+every `qc_summary.tsv` column (a test enforces completeness), the module
+explanations, flag meanings, a glossary and an output file guide. New
+report-only tables: per chromosome, largest rDNA arrays with an rDNA
+karyoplot, CSE positions, and M11 errors inside the coding exons of the
+Complete single-copy BUSCOs (M6 now writes `busco_cds.bed.gz` from BUSCO's
+per-gene miniprot GFF). On JI1006, 2 of 30,540 homopolymer errors fall in
+11.3 Mb of BUSCO exons and 102 within 100 bp of one; the errors are in A/T
+runs of ≥ 9 bp that coding sequence rarely contains. M4 T2T now also
+requires no gap (SPEC §8.4). Released as `0.1.0rc5`.

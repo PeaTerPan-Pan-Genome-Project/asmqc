@@ -4,7 +4,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions
 follow semantic versioning; results are comparable only within one
 `MAJOR.MINOR` version.
 
-## [Unreleased]
+## [0.1.0rc5] - 2026-10-03
+
+Fifth release candidate. Not validated against SPEC §11.2; results are not
+for comparison.
 
 ### Changed
 
@@ -21,8 +24,9 @@ follow semantic versioning; results are comparable only within one
   single-copy BUSCOs.
 - Report: at-a-glance values, per-chromosome table, rDNA karyoplot and
   largest arrays (M5), CSE list (M9), homopolymer errors in BUSCO coding
-  exons with frameshift count and affected genes (M11), flag-code meanings,
-  glossary and output file guide.
+  exons with frameshift count, errors near exons and affected genes (M11),
+  flag-code meanings, glossary and output file guide.
+- README: measured wall times from the first full runs.
 
 ## [0.1.0rc4] - 2026-10-02
 

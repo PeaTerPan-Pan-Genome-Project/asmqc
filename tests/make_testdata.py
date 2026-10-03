@@ -465,8 +465,10 @@ def main(argv: list[str] | None = None) -> None:
         "m04": {
             "arms": arms,
             "capped_arms": statuses.count("capped"),
-            "t2t_chromosomes": sum(a["start"]["status"] == a["end"]["status"] == "capped"
-                                   for a in arms.values()),
+            # T2T: both arms capped and no N-run >= 10 bp (SPEC §8.4)
+            "t2t_chromosomes": sum(arms[c]["start"]["status"] == arms[c]["end"]["status"]
+                                   == "capped" and not re.search("N{10,}", seqs[c].upper())
+                                   for c in CHROMS),
             "wrong_orientation_arms": statuses.count("wrong_orientation"),
             "interstitial": events_of("interstitial_telomere"),
             "unplaced_with_telomere": 0,

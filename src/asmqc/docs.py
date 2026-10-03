@@ -414,7 +414,7 @@ MODULE_TEXT: dict[str, list[str]] = {
         "runs are mostly A or T.",
         "In genes, an indel whose length is not a multiple of 3 shifts the reading frame "
         "and usually truncates the protein. The table below counts errors inside the coding "
-        "exons of the conserved BUSCO genes (M6); such errors appear in M6 as internal stop "
+        "exons of the conserved BUSCO genes (M6); such errors may appear in M6 as internal stop "
         "codons.",
     ],
 }
