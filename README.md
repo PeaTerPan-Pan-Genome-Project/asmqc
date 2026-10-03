@@ -142,13 +142,31 @@ breakpoints in M9.
 
 ## Resources
 
-Estimates for a 4.3 Gb assembly on 32 threads; measured values will replace
-them before v1.0.
+Measured on one pea assembly (4.22 Gb, chr1–chr7 plus 56 unplaced
+sequences) on an AMD EPYC 9654 host, with the work directory on local
+disk. Wall times are from `run_manifest.json`.
 
-| Run type | Time | RAM | Workdir |
-|---|---|---|---|
-| Assembly only (M1–M7) | ~6–12 h | 64 GB | ~60 GB |
-| With Illumina and long reads | ~1–2 days | 128 GB | ~500 GB |
+| Run type | Threads | Wall time |
+|---|---|---|
+| Assembly only (M1, M2, M4–M7) | 32 | 28 min |
+| With Illumina (58 Gb, ~14×) and HiFi (~21×) reads | 64 | 18.4 h |
+
+Wall time per stage, with reads (64 threads):
+
+| Stage | Wall time |
+|---|---|
+| M9 (CRAQ) | 15.1 h |
+| Read mapping (Illumina and HiFi) | 2.0 h |
+| M11 (variant calling and classification) | 32 min |
+| meryl k-mer counting | 17 min |
+| M8 (Merqury) | 11 min |
+| M6 (BUSCO) | 9 min (14 min on 32 threads) |
+| M2 (QUAST) | 6 min |
+| M1, M4, M5, M7, prep and scan | 9 min together |
+
+CRAQ dominates the run with reads. Peak memory and work directory size were
+not recorded; plan for 128 GB of RAM and about 500 GB of work space with
+reads, 64 GB and 60 GB without.
 
 Put `--workdir` on fast scratch with enough space. A free-space shortfall is
 reported as a warning before the run starts.

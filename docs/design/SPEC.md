@@ -843,6 +843,13 @@ values** before v1.0.
 | Full run with Illumina and long reads | ~1–2 days | 128 GB | ~500 GB |
 | Assembly-only run (M1–M7) | ~6–12 h | 64 GB | ~60 GB |
 
+First measurement (2026-10-03; one 4.22 Gb pea assembly, AMD EPYC 9654,
+wall times from `run_manifest.json`; peak RAM and work disk not recorded):
+assembly only 28 min on 32 threads (BUSCO 14 min, QUAST 6 min); with
+Illumina (58 Gb) and HiFi (~21×) reads 18.4 h on 64 threads, of which CRAQ
+15.1 h, read mapping 2.0 h, M11 32 min, meryl 17 min, Merqury 11 min. The
+README gives these values.
+
 ---
 
 ## 10. Repository, build and release
