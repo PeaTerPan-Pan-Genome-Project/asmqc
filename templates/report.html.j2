@@ -178,6 +178,9 @@
     <tr><td>Frameshifting errors</td><td class="val">{{ "{:,}".format(e.frameshift) }}</td>
       <td class="help">Indel length not a multiple of 3: shifts the reading frame and usually
         truncates the protein.</td></tr>
+    <tr><td>Errors within {{ e.flank_bp }} bp of a BUSCO exon</td><td class="val">{{ "{:,}".format(e.flank) }}</td>
+      <td class="help">Outside the exons but close to them: introns and untranslated ends, where
+        an error can still affect splicing.</td></tr>
     <tr><td>BUSCO genes with an error</td><td class="val">{{ "{:,}".format(e.genes_affected) }}
       ({{ "%.2f"|format(100 * e.genes_affected / e.genes) }} %)</td>
       <td class="help">Share of the conserved genes damaged; extrapolates roughly to the whole gene set.</td></tr>

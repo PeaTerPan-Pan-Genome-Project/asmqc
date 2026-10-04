@@ -4,6 +4,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions
 follow semantic versioning; results are comparable only within one
 `MAJOR.MINOR` version.
 
+## [0.1.0rc6] - 2026-10-04
+
+Sixth release candidate. Not validated against SPEC §11.2; results are not
+for comparison.
+
+### Fixed
+
+- Report: the row "Errors within 100 bp of a BUSCO exon" (M11) was missing
+  from the template in 0.1.0rc5.
+
 ## [0.1.0rc5] - 2026-10-03
 
 Fifth release candidate. Not validated against SPEC §11.2; results are not

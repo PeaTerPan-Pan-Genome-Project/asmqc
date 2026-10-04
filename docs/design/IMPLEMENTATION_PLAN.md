@@ -356,4 +356,5 @@ Complete single-copy BUSCOs (M6 now writes `busco_cds.bed.gz` from BUSCO's
 per-gene miniprot GFF). On JI1006, 2 of 30,540 homopolymer errors fall in
 11.3 Mb of BUSCO exons and 102 within 100 bp of one; the errors are in A/T
 runs of ≥ 9 bp that coding sequence rarely contains. M4 T2T now also
-requires no gap (SPEC §8.4). Released as `0.1.0rc5`.
+requires no gap (SPEC §8.4). Released as `0.1.0rc5`; `0.1.0rc6` adds the
+template row missed in rc5.
