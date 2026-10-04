@@ -71,6 +71,18 @@ def junction_crosscheck(cse: list[tuple[str, int, int]], js: dict, window: int):
     return out
 
 
+def sorted_report(text: str, order: list[str]) -> str:
+    """out_final.Report with the per-sequence rows in assembly order. CRAQ
+    writes them in Perl hash order, which differs between runs; the header
+    and Genome rows stay first."""
+    lines = text.splitlines()
+    rank = {s: i for i, s in enumerate(order)}
+    head = [ln for ln in lines if ln.split("\t")[0] not in rank]
+    rows = sorted((ln for ln in lines if ln.split("\t")[0] in rank),
+                  key=lambda ln: rank[ln.split("\t")[0]])
+    return "\n".join(head + rows) + "\n"
+
+
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--craq-dir", type=Path, required=True)
@@ -105,7 +117,8 @@ def main(argv: list[str] | None = None) -> None:
                              message=f"median long-read depth {cov:g}x < {P['low_coverage']}x"))
     out = args.outdir
     out.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(run / "out_final.Report", out / "out_final.Report")
+    (out / "out_final.Report").write_text(
+        sorted_report((run / "out_final.Report").read_text(), list(module.read_fai(args.fai))))
     shutil.copyfile(run / "locER_out" / "out_final.CRE.bed", out / "CRE.bed")
     shutil.copyfile(run / "strER_out" / "out_final.CSE.bed", out / "CSE.bed")
     module.write_tsv(out / "craq_derived.tsv",

@@ -1,0 +1,28 @@
+#!/bin/sh
+# bash shim for CRAQ only (workflow/rules/m09.smk). CRAQ's driver runs
+# system("bash .../runLR.sh ...") and then system("bash .../runSR.sh ...");
+# the two passes read their own BAM and write to their own directory (LRout/,
+# SRout/), and only the AQI step after them needs both. With
+# ASMQC_CRAQ_PARALLEL=1 the long-read pass is started in the background and
+# the short-read call returns only when both passes have finished, so the
+# AQI step sees the same files as in a serial run. Everything else goes to
+# /bin/bash unchanged.
+real=/bin/bash
+status=${ASMQC_CRAQ_LR_STATUS:-}
+if [ "${ASMQC_CRAQ_PARALLEL:-0}" = 1 ] && [ -n "$status" ]; then
+    case "$1" in
+        */runLR.sh)
+            rm -f "$status"
+            ( "$real" "$@"; echo $? > "$status.tmp" && mv "$status.tmp" "$status" ) &
+            exit 0 ;;
+        */runSR.sh)
+            "$real" "$@"
+            rc=$?
+            while [ ! -e "$status" ]; do sleep "${ASMQC_CRAQ_POLL:-5}"; done
+            lr=$(cat "$status")
+            echo "craq_shim: long-read pass exit $lr, short-read pass exit $rc" >&2
+            [ "$rc" = 0 ] && exit "$lr"
+            exit "$rc" ;;
+    esac
+fi
+exec "$real" "$@"

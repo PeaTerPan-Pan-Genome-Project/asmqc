@@ -7,6 +7,7 @@
 from pathlib import Path
 
 from asmqc import tools
+from asmqc.plan import budget
 
 W = Path(config["work"])
 R = Path(config["result_dir"])
@@ -30,6 +31,12 @@ def bench(key, rule):
 
 def runs(module):
     return PLAN[module]["status"] == "run"
+
+
+# CRAQ (M9) gets a small fixed share of threads and half the memory; the
+# other modules use the rest and run alongside it (asmqc.plan.budget).
+BUDGET = budget(workflow.cores, config["mem_mb"], runs("m09"))
+M09_THREADS, SIDE_THREADS = BUDGET["craq_threads"], BUDGET["side_threads"]
 
 
 include: "rules/prep.smk"

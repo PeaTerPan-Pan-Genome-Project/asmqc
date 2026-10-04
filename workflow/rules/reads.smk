@@ -41,7 +41,7 @@ M08_FILES = (config["reads"]["illumina"] if M08_RT == "illumina"
 
 def meryl_cmd(wildcards, threads):
     """meryl count per read file (k = 21, fixed), then union-sum."""
-    mem = max(1, config["mem_mb"] // 1024 - 2)
+    mem = max(1, BUDGET["side_mem_mb"] // 1024 - 2)
     parts = [f"{W}/meryl/part{i}.meryl" for i in range(len(M08_FILES))]
     count = [f"meryl count k=21 memory={mem} threads={threads} output {p} {f}"
              for p, f in zip(parts, M08_FILES)]
@@ -58,7 +58,9 @@ rule meryl_reads:
     params:
         pre=env("merqury", "meryl"),
         cmd=meryl_cmd,
-    threads: workflow.cores
+    threads: SIDE_THREADS
+    resources:
+        mem_mb=BUDGET["side_mem_mb"],
     log:
         log("meryl_reads"),
     benchmark:

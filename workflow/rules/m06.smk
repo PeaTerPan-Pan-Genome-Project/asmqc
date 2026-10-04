@@ -13,7 +13,7 @@ rule m06_busco:
     params:
         pre=env("busco", "m06_busco"),
         check=env("core", "m06_check"),
-    threads: workflow.cores
+    threads: SIDE_THREADS
     log:
         log("m06_busco"),
     benchmark:
