@@ -184,6 +184,14 @@ The read type actually used is recorded in each module's output.
 
 - Snakemake, called by the `asmqc` wrapper with `--cores`,
   `--resources mem_mb`, `--rerun-incomplete` and `--keep-going`.
+- **Thread and memory budget** (`asmqc.plan.budget`): read mapping uses all
+  cores. When M9 runs, CRAQ gets min(8, cores ÷ 2) threads, half of
+  `--mem-gb` and the highest priority. Every other rule gets the remaining
+  threads (meryl also the other half of the memory), so the other modules
+  run while CRAQ runs instead of after it. Without M9 every rule gets all
+  cores. Threads and memory change no result.
+- Per-rule Snakemake benchmarks (wall time, `max_rss`, CPU load) are copied
+  to `logs/benchmarks/`.
 - Re-running the same command resumes from the workdir.
 - Each rule puts its environment's `bin/` on PATH explicitly. There is no
   conda activation at run time.
@@ -747,6 +755,15 @@ linked into the CRAQ run directory with `.bai` links to the CSI index (CRAQ
 only tests that the file exists), and a `samtools` shim used only for CRAQ
 turns `index` into `index -c`.
 
+CRAQ's driver runs its long-read pass (`runLR.sh`) and then its short-read
+pass (`runSR.sh`); they read their own BAM, write to their own directory, and
+only the AQI step after them needs both. With `-ngs`, a `bash` shim used only
+for CRAQ starts the long-read pass in the background and returns from the
+short-read call when both have finished. Results are identical to a serial
+run; wall time is the longer pass instead of the sum. `out_final.Report` is
+copied with its per-sequence rows in assembly order (CRAQ writes them in
+Perl hash order).
+
 **Parse `out_final.Report`:** AQI, R-AQI, S-AQI, CRE count, CSE count. Keep
 the CRE and CSE BEDs.
 
@@ -1002,6 +1019,7 @@ The concrete data and expected values are kept privately by the maintainers.
 | 2026-10-02 | M6 synteny with Caméor v2 from BUSCO anchors (committed table, no reference sequence in the image); report only |
 | 2026-10-02 | CSI indexes for all BAMs and VCFs (pea chromosomes exceed the 2^29 BAI/TBI limit); CRAQ gets `.bai` links to CSI and a samtools shim |
 | 2026-10-03 | M4: T2T requires both arms capped and no gap (N-run ≥ 10 bp) |
+| 2026-10-04 | Thread/memory budget: CRAQ capped, other modules run alongside it; CRAQ long- and short-read passes run concurrently (bash shim); benchmarks kept in `logs/benchmarks/` |
 
 ## 13. Open points (to the maintainers before deciding)
 

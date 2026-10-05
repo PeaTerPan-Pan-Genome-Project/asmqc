@@ -10,7 +10,7 @@ rule m07_align:
         lst=W / "m07" / "unplaced_ge1kb.txt",
     params:
         pre=env("core", "m07_align"),
-    threads: workflow.cores
+    threads: SIDE_THREADS
     log:
         log("m07_align"),
     benchmark:

@@ -224,6 +224,7 @@ def run(opts: RunOptions, command_line: str) -> int:
     }
     (out / "run_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
 
+    copy_benchmarks(work, out / "logs" / "benchmarks")
     scrub_paths(out / "logs", path_placeholders(opts))
     try:
         from asmqc import report
@@ -262,6 +263,16 @@ def path_placeholders(opts: RunOptions) -> list[tuple[str, str]]:
         if d and len(d) > 1:
             pairs.setdefault(d, "<tmp>" if d == os.environ.get("TMPDIR") else "<home>")
     return sorted(pairs.items(), key=lambda kv: -len(kv[0]))
+
+
+def copy_benchmarks(work: Path, dest: Path) -> None:
+    """Snakemake per-rule benchmarks (wall time, max_rss, mean_load, cpu_time)
+    into the result directory; the workdir is removed after a clean run."""
+    files = sorted((work / "benchmarks").glob("*.tsv"))
+    if files:
+        dest.mkdir(parents=True, exist_ok=True)
+        for f in files:
+            shutil.copyfile(f, dest / f.name)
 
 
 def scrub_paths(logs: Path, placeholders: list[tuple[str, str]]) -> None:

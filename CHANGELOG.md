@@ -4,6 +4,22 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions
 follow semantic versioning; results are comparable only within one
 `MAJOR.MINOR` version.
 
+## [Unreleased]
+
+### Changed
+
+- Run time with long reads: CRAQ (M9) gets at most 8 threads and half of
+  `--mem-gb`; the other modules use the rest and run while CRAQ runs. With
+  short reads, CRAQ's long- and short-read passes run concurrently. No
+  result changes.
+- `m09_craq/out_final.Report` lists sequences in assembly order (was Perl
+  hash order, different between runs).
+
+### Added
+
+- Per-rule benchmarks (wall time, peak memory, CPU load) in
+  `logs/benchmarks/`.
+
 ## [0.1.0] - 2026-10-05
 
 First release. The code is that of 0.1.0rc6, which completed a full run on

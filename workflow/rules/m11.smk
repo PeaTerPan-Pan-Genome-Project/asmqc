@@ -15,7 +15,7 @@ rule m11_callable:
         W / "m11" / "callable.bed",
     params:
         pre=env("core", "m11_callable"),
-    threads: workflow.cores
+    threads: SIDE_THREADS
     log:
         log("m11_callable"),
     benchmark:
@@ -32,7 +32,7 @@ rule m11_call:
         W / "m11" / "calls.norm.vcf.gz",
     params:
         pre=env("core", "m11_call"),
-    threads: workflow.cores
+    threads: SIDE_THREADS
     log:
         log("m11_call"),
     benchmark:

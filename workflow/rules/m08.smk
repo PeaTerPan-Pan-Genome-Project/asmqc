@@ -9,7 +9,7 @@ rule m08_merqury:
         W / "m08" / "merqury" / f"{config['label']}.qv",
     params:
         pre=env("merqury", "m08"),
-    threads: workflow.cores
+    threads: SIDE_THREADS
     log:
         log("m08_merqury"),
     benchmark:

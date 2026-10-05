@@ -21,7 +21,7 @@ rule m05_organelles:
         W / "m05" / "organelles.paf",
     params:
         pre=env("core", "m05_organelles"),
-    threads: workflow.cores
+    threads: SIDE_THREADS
     log:
         log("m05_organelles"),
     benchmark:
@@ -40,7 +40,7 @@ rule m05_rdna:
     params:
         pre=env("core", "m05_rdna"),
         db=W / "m05" / "blastdb" / "asm",
-    threads: workflow.cores
+    threads: SIDE_THREADS
     log:
         log("m05_rdna"),
     benchmark:

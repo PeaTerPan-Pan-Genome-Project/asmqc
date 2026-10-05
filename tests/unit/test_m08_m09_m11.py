@@ -89,3 +89,11 @@ def test_junction_crosscheck(tmp_path):
     out = m09.junction_crosscheck(cse, js, 10_000)
     assert [r[4] for r in out] == ["yes", "no", "yes"]
     assert out[0][3] == 4501
+
+
+def test_m09_report_rows_in_assembly_order():
+    from asmqc import m09_craq
+
+    text = ("Short Report:\n#Chr\tCovered.Rate\nGenome\t0.9\nchr2\t0.8\nu1\t0.1\nchr1\t0.7\n")
+    assert m09_craq.sorted_report(text, ["chr1", "chr2", "u1"]) == (
+        "Short Report:\n#Chr\tCovered.Rate\nGenome\t0.9\nchr1\t0.7\nchr2\t0.8\nu1\t0.1\n")

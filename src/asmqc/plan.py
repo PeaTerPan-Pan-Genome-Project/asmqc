@@ -81,3 +81,21 @@ def describe(plan: dict[str, ModulePlan]) -> str:
 
 def as_dict(plan: dict[str, ModulePlan]) -> dict[str, dict]:
     return {m: asdict(p) for m, p in plan.items()}
+
+
+def budget(cores: int, mem_mb: int, craq: bool) -> dict[str, int]:
+    """Thread and memory shares for CRAQ (M9) and the other rules.
+
+    CRAQ runs for hours but uses -t only for samtools view, so it gets a
+    small fixed thread share and the other rules the rest; they then run
+    while CRAQ runs instead of after it. Memory is split in half because
+    CRAQ's depth scripts and meryl are the two large consumers. Without M9
+    everything gets the whole machine. Read mapping always uses all cores
+    (CRAQ waits for its BAMs anyway).
+    """
+    if not craq:
+        return {"craq_threads": 0, "side_threads": cores, "craq_mem_mb": 0,
+                "side_mem_mb": mem_mb}
+    craq_threads = max(1, min(8, cores // 2))
+    return {"craq_threads": craq_threads, "side_threads": max(1, cores - craq_threads),
+            "craq_mem_mb": mem_mb // 2, "side_mem_mb": mem_mb - mem_mb // 2}

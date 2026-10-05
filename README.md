@@ -164,9 +164,13 @@ Wall time per stage, with reads (64 threads):
 | M2 (QUAST) | 6 min |
 | M1, M4, M5, M7, prep and scan | 9 min together |
 
-CRAQ dominates the run with reads. Peak memory and work directory size were
-not recorded; plan for 128 GB of RAM and about 500 GB of work space with
-reads, 64 GB and 60 GB without.
+These times are from 0.1.0, where every module waited for CRAQ. The next
+version runs the other modules alongside CRAQ and CRAQ's long- and
+short-read passes concurrently; the expected saving is several hours, to be
+measured. Peak memory was not recorded for these runs; plan for 128 GB of
+RAM and about 500 GB of work space with reads, 64 GB and 60 GB without.
+Each run now keeps per-rule wall time and peak memory in
+`logs/benchmarks/`.
 
 Put `--workdir` on fast scratch with enough space. A free-space shortfall is
 reported as a warning before the run starts.

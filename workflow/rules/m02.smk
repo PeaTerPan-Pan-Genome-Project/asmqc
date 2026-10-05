@@ -8,7 +8,7 @@ rule m02_quast:
         W / "m02" / "quast" / "report.tsv",
     params:
         pre=env("quast", "m02_quast"),
-    threads: workflow.cores
+    threads: SIDE_THREADS
     log:
         log("m02_quast"),
     benchmark:

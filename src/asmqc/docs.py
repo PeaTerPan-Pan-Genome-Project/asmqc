@@ -506,6 +506,7 @@ FILES: list[tuple[str, str]] = [
     ("m11_homopolymer/errors.bed.gz", "Every homopolymer and dinucleotide-repeat error."),
     ("m11_homopolymer/hom_calls.vcf.gz", "All homozygous calls used."),
     ("logs/", "Tool logs (local paths replaced by placeholders)."),
+    ("logs/benchmarks/", "Per-rule wall time, peak memory (max_rss), CPU load and time."),
 ]
 
 
