@@ -4,6 +4,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions
 follow semantic versioning; results are comparable only within one
 `MAJOR.MINOR` version.
 
+## [0.1.0] - 2026-10-05
+
+First release. The code is that of 0.1.0rc6, which completed a full run on
+a chromosome-level pea assembly with Illumina and HiFi reads. Not yet
+validated against SPEC §11.2 on the consortium set; results are comparable
+only within 0.1.
+
 ## [0.1.0rc6] - 2026-10-04
 
 Sixth release candidate. Not validated against SPEC §11.2; results are not
