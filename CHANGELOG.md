@@ -4,7 +4,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions
 follow semantic versioning; results are comparable only within one
 `MAJOR.MINOR` version.
 
-## [Unreleased]
+## [0.1.1] - 2026-10-05
+
+Faster runs with long reads; results identical to 0.1.0.
 
 ### Changed
 
