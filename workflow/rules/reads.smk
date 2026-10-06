@@ -10,6 +10,14 @@ def read_units(rt):
     return config["reads"]["hifi" if rt == "hifi" else "ont"]
 
 
+# All read types are mapped at the same time, with the cores split by input
+# size (asmqc.plan.map_threads); the BAMs do not depend on the thread count.
+MAP_THREADS = map_threads(
+    workflow.cores,
+    {rt: sum(os.path.getsize(f) for u in read_units(rt) for f in u.split(","))
+     for rt in config["read_types"]})
+
+
 rule map_reads:
     input:
         fa=W / "prep" / "asm.fa",
@@ -23,7 +31,7 @@ rule map_reads:
     params:
         pre=lambda w: env("core", f"map_{w.rt}"),
         units=lambda w: " ".join(f"'{u}'" for u in read_units(w.rt)),
-    threads: workflow.cores
+    threads: lambda w: MAP_THREADS[w.rt]
     log:
         log("map_{rt}"),
     benchmark:

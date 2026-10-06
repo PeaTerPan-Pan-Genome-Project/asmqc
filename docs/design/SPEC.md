@@ -184,8 +184,9 @@ The read type actually used is recorded in each module's output.
 
 - Snakemake, called by the `asmqc` wrapper with `--cores`,
   `--resources mem_mb`, `--rerun-incomplete` and `--keep-going`.
-- **Thread and memory budget** (`asmqc.plan.budget`): read mapping uses all
-  cores. When M9 runs, CRAQ gets min(8, cores ÷ 2) threads, half of
+- **Thread and memory budget** (`asmqc.plan.budget`, `map_threads`): all
+  read types are mapped at the same time, the cores split in proportion to
+  their input size. When M9 runs, CRAQ gets min(16, cores ÷ 2) threads, half of
   `--mem-gb` and the highest priority. Every other rule gets the remaining
   threads (meryl also the other half of the memory), so the other modules
   run while CRAQ runs instead of after it. Without M9 every rule gets all
@@ -772,7 +773,13 @@ env is not modified. Two changes, both with byte-identical results:
   for both read types (about 75 GB each for a pea genome) and reads them with
   several scripts in turn. The patched `runLR.sh` and `runSR.sh` extract clip
   and indel sites from the BAM first, then stream one depth table per BAM to
-  all its readers at once (`asmqc_fanout.pl`) without writing it; they also
+  all its readers at once (`asmqc_fanout.pl`) without writing it. The BAM
+  filter, the site scans and the depth stream run per segment of whole
+  sequences in header order (`asmqc_segments.pl`), CRAQ's `-t` segments at a
+  time (`asmqc_par.pl`); parts are concatenated in segment order, which is
+  table order, or joined by `asmqc_merge.pl` where a script prints in another
+  order (the indel scan prints all deletions before all insertions; the
+  effective-size counts and `search_dep0.pl` sort sequences as strings); they also
   record the sequences in the stream (`*_depth.seqs`) and the short-read MAPQ
   filter. The patched `runAQI.sh` takes the two cross-read-type lookups
   (`get_ER.pl`: long-read depth around short-read candidates;
@@ -1049,6 +1056,7 @@ The concrete data and expected values are kept privately by the maintainers.
 | 2026-10-04 | Thread/memory budget: CRAQ capped, other modules run alongside it; CRAQ long- and short-read passes run concurrently (bash shim); benchmarks kept in `logs/benchmarks/` |
 | 2026-10-06 | CRAQ: six depth-table scripts replaced by output-identical streaming versions (issue #2); patch release, recorded under `tool_patches` |
 | 2026-10-06 | CRAQ: no per-base depth tables written; one streamed depth pass per BAM, region queries for the AQI lookups (patched runLR/runSR/runAQI drivers); results identical |
+| 2026-10-06 | Read types mapped concurrently (threads by input size); CRAQ passes run per segment of whole sequences in parallel; CRAQ share up to 16 threads; results identical |
 
 ## 13. Open points (to the maintainers before deciding)
 

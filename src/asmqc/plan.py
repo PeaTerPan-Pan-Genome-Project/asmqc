@@ -86,9 +86,10 @@ def as_dict(plan: dict[str, ModulePlan]) -> dict[str, dict]:
 def budget(cores: int, mem_mb: int, craq: bool) -> dict[str, int]:
     """Thread and memory shares for CRAQ (M9) and the other rules.
 
-    CRAQ runs for hours but uses -t only for samtools view, so it gets a
-    small fixed thread share and the other rules the rest; they then run
-    while CRAQ runs instead of after it. Memory is split in half because
+    CRAQ runs for hours; its patched drivers (workflow/craq_patch) run up to
+    -t segment jobs per read pass, so it gets a fixed share of up to 16
+    threads and the other rules the rest; they run while CRAQ runs instead of
+    after it. Memory is split in half because
     CRAQ's depth scripts and meryl are the two large consumers. Without M9
     everything gets the whole machine. Read mapping always uses all cores
     (CRAQ waits for its BAMs anyway).
@@ -96,6 +97,28 @@ def budget(cores: int, mem_mb: int, craq: bool) -> dict[str, int]:
     if not craq:
         return {"craq_threads": 0, "side_threads": cores, "craq_mem_mb": 0,
                 "side_mem_mb": mem_mb}
-    craq_threads = max(1, min(8, cores // 2))
+    craq_threads = max(1, min(16, cores // 2))
     return {"craq_threads": craq_threads, "side_threads": max(1, cores - craq_threads),
             "craq_mem_mb": mem_mb // 2, "side_mem_mb": mem_mb - mem_mb // 2}
+
+
+def map_threads(cores: int, sizes: dict[str, int]) -> dict[str, int]:
+    """Threads per read type when all read types are mapped at once: shares
+    of the cores proportional to the input size (largest remainder), at least
+    one each, summing to `cores` (or to the number of read types if that is
+    larger). Mapping output does not depend on the thread count."""
+    if not sizes:
+        return {}
+    total = sum(sizes.values())
+    weights = sizes if total > 0 else dict.fromkeys(sizes, 1)
+    total = sum(weights.values())
+    quota = {rt: cores * w / total for rt, w in weights.items()}
+    out = {rt: int(q) for rt, q in quota.items()}
+    for rt in sorted(quota, key=lambda r: (out[r] - quota[r], r))[:cores - sum(out.values())]:
+        out[rt] += 1
+    for rt in [r for r, n in out.items() if n == 0]:  # at least one each
+        big = max(out, key=out.get)  # taken from the largest share
+        if out[big] > 1:
+            out[big] -= 1
+        out[rt] = 1
+    return out

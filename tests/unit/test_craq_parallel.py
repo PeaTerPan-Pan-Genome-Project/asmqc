@@ -18,7 +18,7 @@ def test_budget_splits_cores_and_memory(cores):
     b = planner.budget(cores, 256 * 1024, craq=True)
     assert b["craq_threads"] >= 1 and b["side_threads"] >= 1
     assert b["craq_threads"] + b["side_threads"] == cores
-    assert b["craq_threads"] <= 8
+    assert b["craq_threads"] <= 16
     assert b["craq_mem_mb"] + b["side_mem_mb"] == 256 * 1024
 
 
@@ -73,3 +73,16 @@ def test_copy_benchmarks(tmp_path):
     assert (tmp_path / "logs" / "benchmarks" / "m09.craq.tsv").exists()
     runner.copy_benchmarks(tmp_path / "none", tmp_path / "x")  # no benchmarks: nothing
     assert not (tmp_path / "x").exists()
+
+
+@pytest.mark.parametrize(("cores", "sizes"), [
+    (64, {"hifi": 77, "illumina": 51}), (64, {"hifi": 1}), (3, {"hifi": 5, "illumina": 1}),
+    (1, {"hifi": 5, "illumina": 1}), (64, {"hifi": 0, "illumina": 0}), (7, {"a": 1, "b": 1, "c": 1})])
+def test_map_threads(cores, sizes):
+    t = planner.map_threads(cores, sizes)
+    assert set(t) == set(sizes) and all(v >= 1 for v in t.values())
+    assert sum(t.values()) <= max(cores, len(sizes))
+    if len(sizes) == 1:
+        assert t == {next(iter(sizes)): cores}
+    if cores >= len(sizes):
+        assert sum(t.values()) == cores

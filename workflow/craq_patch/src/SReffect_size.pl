@@ -6,11 +6,14 @@
 #
 # Splits each depth line with index/substr instead of split /\s+/, about twice
 # as fast on samtools depth output (tab-separated: sequence, position, depth).
+# An optional second argument replaces the fixed SRout/Nonmap.loc (used when the
+# genome is processed in segments).
 use strict;
 
-my ($srdep) = @ARGV;
+my ($srdep, $nonmap) = @ARGV;
+$nonmap //= "SRout/Nonmap.loc";
 open my $in, '<', $srdep or die "$srdep: $!";
-open my $out, '>', "SRout/Nonmap.loc" or die "SRout/Nonmap.loc: $!";
+open my $out, '>', $nonmap or die "$nonmap: $!";
 my %depmin;
 while (my $l = <$in>) {
     my $t1 = index($l, "\t");

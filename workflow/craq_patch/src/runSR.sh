@@ -1,7 +1,9 @@
 # Patched copy of src/runSR.sh of CRAQ 1.10 (https://github.com/JiaoLaboratory/CRAQ,
 # MIT License, Copyright (c) 2023 JiaoLaboratory; see ../LICENSE.CRAQ), used by
-# asmqc M9. Changed: the per-base depth table is streamed to its readers
-# instead of written (block marked "asmqc" below); everything else as in CRAQ.
+# asmqc M9. Changed (marked "asmqc" below): the per-base depth table is
+# streamed to its readers instead of written, and the BAM filter, the clip scan
+# and the depth stream run per segment of whole sequences in parallel.
+# Everything else as in CRAQ.
 
 src=`cd $(dirname $0); pwd -P`
 SRname="SR"
@@ -97,8 +99,19 @@ if [[ "$query_1_tmp" =~ (fa$)|(fq$)|(fasta$)|(fastq$)|(fa.gz$)|(fq.gz$)|(fasta.g
 
 	        input_bam=$query_1
 		echo -e "Skipping alignment::\n[M::worker_pipeline:: Filtering bamfiles]"
-	samtools view -h  -F 1796  $input_bam  -t $t | perl $src/srsam_cigar_filter.pl $mapquality - | samtools view -h -S -b -@ $t -  -o SRout/$SRname"_sort.bam"
-		samtools index SRout/$SRname"_sort.bam"
+	# asmqc: filtered per segment of whole sequences (header order), in
+	# parallel, then concatenated: the same records in the same order
+	mkdir -p SRout/asmqc_parts
+	idx_bam=$(readlink -f $input_bam)  # CRAQ links the BAM without its index
+	segs=($(perl $src/asmqc_segments.pl $idx_bam $t SRout/asmqc_parts/seg)) || exit 1
+	cmds=()
+	for s in "${segs[@]}"; do
+		cmds+=("samtools view -h  -F 1796 -M -L $s $idx_bam  -t $t | perl $src/srsam_cigar_filter.pl $mapquality - | samtools view -h -S -b -  -o ${s%.bed}.filter.bam")
+	done
+	perl $src/asmqc_par.pl $t "${cmds[@]}" || exit 1
+	samtools cat -o SRout/$SRname"_sort.bam" "${segs[@]/%.bed/.filter.bam}" || exit 1
+	rm -f "${segs[@]/%.bed/.filter.bam}"
+		samtools index -@ $t SRout/$SRname"_sort.bam"
 	fi
 	
 	if [[ "$query_1_tmp" =~ (fa$)|(fq$)|(fasta$)|(fastq$)|(fa.gz$)|(fq.gz$)|(fasta.gz$)|(fastq.gz$) ]]; then
@@ -131,28 +144,46 @@ else
 fi
 #echo -e "\n##########################################################################################\n"
 # asmqc (see header): no per-base depth table (SR_sort.depth) is written.
-# Clip sites come from the BAM alone and are extracted first; one depth stream
-# then feeds every former reader of the table at once. File names and
-# contents are as in CRAQ 1.10, plus SR_depth.seqs (the sequences in the
-# stream) and SR_depth.mapq (its MAPQ filter) for the region queries in
-# runAQI.sh.
+# Clip sites come from the BAM alone and are extracted first; a depth stream
+# then feeds every former reader of the table at once. Both run per segment of
+# whole sequences in parallel ($t jobs); parts are joined in segment (= header
+# = depth table) order, or by asmqc_merge.pl where a script's output is not in
+# table order. File names and contents are as in CRAQ 1.10, plus
+# SR_depth.seqs (the sequences in the stream) and SR_depth.mapq (its MAPQ
+# filter) for the region queries in runAQI.sh.
 echo "$mapquality" >SRout/$SRname"_depth.mapq"
-dep_cmds=("perl $src/SReffect_size.pl /dev/stdin >SRout/${SRname}_eff.size" "cut -f1 | uniq >SRout/${SRname}_depth.seqs")
+mkdir -p SRout/asmqc_parts
+segs=($(perl $src/asmqc_segments.pl SRout/$SRname"_sort.bam" $t SRout/asmqc_parts/seg)) || exit 1
 if (($minclip_num >= 0)); then
      echo -e "[M::worker_pipeline:: Collect potential CRE|RH]"
 #######start extract clipped reads
-     samtools view -@ $t -q $mapquality SRout/$SRname"_sort.bam" | perl $src/caculate_breakpoint_depth.pl  -  > SRout/$SRname"_clipped.cov"
+     cmds=()
+     for s in "${segs[@]}"; do
+          cmds+=("samtools view -q $mapquality -M -L $s SRout/${SRname}_sort.bam | perl $src/caculate_breakpoint_depth.pl - >${s%.bed}.clip")
+     done
+     perl $src/asmqc_par.pl $t "${cmds[@]}" || exit 1
+     cat "${segs[@]/%.bed/.clip}" > SRout/$SRname"_clipped.cov"
      perl -alne  'print if($F[3]>='$minclip_num')' SRout/$SRname"_clipped.cov" >SRout/$SRname"_clipped.cov.tmp"
-     dep_cmds+=("perl $src/synthesize_SRbkdep_and_alldep.pl SRout/${SRname}_clipped.cov.tmp /dev/stdin >SRout/${SRname}_clip.coverRate"
-                "perl $src/search_dep0.pl /dev/stdin >SRout/${SRname}_putative.RE.0.tmp")
 fi
 echo -e "[M::worker_pipeline:: Compute effective NGS coverage]"
-samtools view -h -@ $t -q $mapquality SRout/$SRname"_sort.bam" |samtools depth -a - | perl $src/asmqc_fanout.pl "${dep_cmds[@]}"
-st=("${PIPESTATUS[@]}")
-if [ "${st[0]}" != 0 ] || [ "${st[1]}" != 0 ] || [ "${st[2]}" != 0 ]; then
-	echo -e "Error:: short-read depth stream failed (${st[*]}), Exit !" >&2
-	exit 1
+cmds=()
+for s in "${segs[@]}"; do
+     b=${s%.bed}
+     c="samtools view -h -q $mapquality -M -L $s SRout/${SRname}_sort.bam | samtools depth -a - | perl $src/asmqc_fanout.pl 'perl $src/SReffect_size.pl /dev/stdin $b.nonmap >$b.eff' 'cut -f1 | uniq >$b.seqs'"
+     if (($minclip_num >= 0)); then
+          c="$c 'perl $src/synthesize_SRbkdep_and_alldep.pl SRout/${SRname}_clipped.cov.tmp /dev/stdin >$b.bk' 'perl $src/search_dep0.pl /dev/stdin >$b.dep0'"
+     fi
+     cmds+=("$c")
+done
+perl $src/asmqc_par.pl $t "${cmds[@]}" || { echo -e "Error:: short-read depth stream failed, Exit !" >&2; exit 1; }
+perl $src/asmqc_merge.pl effsize "${segs[@]/%.bed/.eff}" > SRout/$SRname"_eff.size"
+cat "${segs[@]/%.bed/.nonmap}" > SRout/Nonmap.loc
+cat "${segs[@]/%.bed/.seqs}" > SRout/$SRname"_depth.seqs"
+if (($minclip_num >= 0)); then
+     cat "${segs[@]/%.bed/.bk}" > SRout/$SRname"_clip.coverRate"
+     perl $src/asmqc_merge.pl dep0 "${segs[@]/%.bed/.dep0}" > SRout/$SRname"_putative.RE.0.tmp"
 fi
+rm -r SRout/asmqc_parts
 
 if (($minclip_num >= 0)); then
      perl -alne  'print if($F[3]>='$minclip_num' && $F[4]>=1 && $F[4] < 2*'$SRavg_depth' && $F[3]/$F[4] >'$she_cutoff_left' )' SRout/$SRname"_clip.coverRate" >SRout/$SRname"_putative.RE.bk.tmp"

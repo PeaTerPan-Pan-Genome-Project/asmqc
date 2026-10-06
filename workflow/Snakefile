@@ -4,10 +4,11 @@
 # Each module NN lives in rules/mNN.smk and must produce <work>/mNN/summary.json
 # (and optionally flags.tsv); the wrapper merges them after Snakemake returns.
 
+import os
 from pathlib import Path
 
 from asmqc import tools
-from asmqc.plan import budget
+from asmqc.plan import budget, map_threads
 
 W = Path(config["work"])
 R = Path(config["result_dir"])

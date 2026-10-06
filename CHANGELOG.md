@@ -4,6 +4,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions
 follow semantic versioning; results are comparable only within one
 `MAJOR.MINOR` version.
 
+## [0.1.4] - 2026-10-06
+
+Shorter runs with reads; results identical to 0.1.3.
+
+### Changed
+
+- All read types are mapped at the same time, the cores split in
+  proportion to their input size (was one read type after the other).
+- CRAQ's BAM filter, clip and indel scans and depth stream run per segment
+  of whole sequences in parallel; the parts are joined into the same files
+  as one genome-wide pass. CRAQ's thread share is up to 16 (was 8).
+
 ## [0.1.3] - 2026-10-06
 
 M9 (CRAQ) without per-base depth tables; results identical to 0.1.2.

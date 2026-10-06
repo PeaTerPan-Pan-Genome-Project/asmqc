@@ -194,6 +194,19 @@ def test_effect_size(tmp_path, seed, name, args, side):
 SAMTOOLS = (tools.env_bin("craq") / "samtools") if tools.env_bin("craq") else shutil.which("samtools")
 
 
+def cigar(rng: random.Random, ln: int) -> str:
+    """Mostly plain matches; some soft clips at either end, small indels and
+    clusters of identical clips (reads ending at the same place)."""
+    r = rng.random()
+    if r < 0.6:
+        return f"{ln}M"
+    left = f"{rng.randint(5, 60)}S" if rng.random() < 0.5 else ""
+    right = f"{rng.randint(5, 60)}S" if rng.random() < 0.5 else ""
+    a = rng.randint(10, ln - 10)
+    mid = f"{a}M{rng.randint(3, 50)}{rng.choice('DI')}{ln - a}M" if r < 0.85 else f"{ln}M"
+    return left + mid + right
+
+
 def make_bam(d: Path, rng: random.Random) -> tuple[Path, dict[str, int]]:
     """Sorted, CSI-indexed BAM: covered stretches, read-free stretches, mixed
     MAPQ, a sequence without reads and one with only MAPQ < 20 reads."""
@@ -210,7 +223,17 @@ def make_bam(d: Path, rng: random.Random) -> tuple[Path, dict[str, int]]:
                 continue
             mapq = 5 if s == "lowq" else rng.choice([0, 10, 20, 30, 60, 60])
             k += 1
-            lines.append(f"r{k}\t0\t{s}\t{pos}\t{mapq}\t{ln}M\t*\t0\t0\t*\t*")
+            lines.append(f"r{k}\t0\t{s}\t{pos}\t{mapq}\t{cigar(rng, ln)}\t*\t0\t0\t*\t*")
+    for s, n in seqs.items():  # clusters: indels and clips supported by several reads
+        if s in ("noreads", "lowq"):
+            continue
+        for _ in range(15):
+            ln = rng.randint(200, 500)
+            pos = rng.randint(1, n - ln)
+            cg = cigar(rng, ln)
+            for _ in range(rng.randint(2, 6)):
+                k += 1
+                lines.append(f"r{k}\t0\t{s}\t{pos}\t60\t{cg}\t*\t0\t0\t*\t*")
     sam = d / "x.sam"
     sam.write_text("\n".join(lines) + "\n")
     bam = d / "x.bam"
@@ -235,15 +258,16 @@ def test_region_depth_path(tmp_path, seed):
     rng = random.Random(seed)
     bam, seqs = make_bam(tmp_path, rng)
     env = os.environ | {"PATH": f"{Path(SAMTOOLS).parent}:{os.environ['PATH']}"}
-    for script, flank, mapq, args in [("get_ER.pl", 200, None, ["10", "20", "0.1"]),
-                                      ("get_ER.pl", 200, None, ["10", "20", "0.6"]),
-                                      ("LRcoverRate_srdep_filter.pl", 1500, 20, [])]:
+    # candidate counts keep the windows sparse (region output smaller than the table)
+    for script, flank, mapq, args, n in [("get_ER.pl", 200, None, ["10", "20", "0.1"], 300),
+                                         ("get_ER.pl", 200, None, ["10", "20", "0.6"], 300),
+                                         ("LRcoverRate_srdep_filter.pl", 1500, 20, [], 30)]:
         full = full_table(bam, mapq)
         (tmp_path / "full").write_bytes(full)
         (tmp_path / "seqs").write_text(
             "".join(dict.fromkeys(ln.split(b"\t")[0].decode() + "\n" for ln in full.splitlines())))
         rows = [f"{c}\t{p}\t{rng.choice('+-')}\t{rng.randint(0, 4)}\t{rng.randint(1, 40)}\n"
-                for c, p in sites(rng, seqs, 300)]
+                for c, p in sites(rng, seqs, n)]
         (tmp_path / "cand").write_text("".join(rows))
         helper = ["perl", str(PATCH / "asmqc_region_depth.pl"), "cand", str(flank), str(bam),
                   "seqs", *([str(mapq)] if mapq is not None else [])]
@@ -297,3 +321,88 @@ def test_region_depth_contract(tmp_path, seed, flank, mapq):
                           str(bam), "seqs", *([str(mapq)] if mapq is not None else [])],
                          cwd=tmp_path, env=env, check=True, capture_output=True).stdout.decode()
     assert got == expected and expected
+
+
+# --- the segmented passes (asmqc_segments/par/merge) against one genome-wide pass ---
+def sh(cmd: str, cwd: Path) -> bytes:
+    env = os.environ | {"PATH": f"{Path(SAMTOOLS).parent}:{os.environ['PATH']}"}
+    return subprocess.run(["bash", "-o", "pipefail", "-c", cmd], cwd=cwd, env=env, check=True,
+                          capture_output=True).stdout
+
+
+@pytest.mark.skipif(SAMTOOLS is None, reason="samtools not installed")
+@pytest.mark.parametrize(("seed", "nseg"), [(0, 1), (1, 2), (2, 3), (3, 8)])
+def test_segmented_passes(tmp_path, seed, nseg):
+    rng = random.Random(seed)
+    bam, seqs = make_bam(tmp_path, rng)
+    segs = sh(f"perl {PATCH}/asmqc_segments.pl {bam} {nseg} seg", tmp_path).decode().split()
+    assert 1 <= len(segs) <= max(nseg, 1)
+    beds = "".join((tmp_path / s).read_text() for s in segs)
+    assert [ln.split("\t")[0] for ln in beds.splitlines()] == list(seqs)  # all, in order
+
+    def per_seg(tmpl: str) -> list[bytes]:
+        return [sh(tmpl.format(s=s), tmp_path) for s in segs]
+
+    # filtered BAM: same records in the same order
+    one = sh(f"samtools view -h -q 20 -F 1796 {bam} | perl {SRC}/lrsam_cigar_filter.pl - "
+             "| samtools view", tmp_path)
+    parts = per_seg(f"samtools view -h -q 20 -F 1796 -M -L {{s}} {bam} "
+                    f"| perl {SRC}/lrsam_cigar_filter.pl - | samtools view -S -b - -o {{s}}.f.bam")
+    assert not any(parts)
+    sh("samtools cat -o cat.bam " + " ".join(f"{s}.f.bam" for s in segs), tmp_path)
+    assert sh("samtools view cat.bam", tmp_path) == one and one
+    sh("samtools index -c cat.bam", tmp_path)
+
+    # depth tables: long reads (samtools depth -a BAM) and short reads (view -q | depth)
+    for whole, seg in [("samtools depth -a cat.bam", "samtools view -h -M -L {s} cat.bam"),
+                       (f"samtools view -h -q 20 {bam} | samtools depth -a -",
+                        f"samtools view -h -q 20 -M -L {{s}} {bam}")]:
+        assert b"".join(per_seg(seg + " | samtools depth -a -")) == sh(whole, tmp_path)
+
+    # clip and indel scans: same lines (CRAQ prints them in hash order); D before I
+    clip = sorted(sh(f"samtools view cat.bam | perl {SRC}/caculate_breakpoint_depth.pl -",
+                     tmp_path).splitlines())
+    clip_seg = per_seg(f"samtools view -M -L {{s}} cat.bam | perl {SRC}/caculate_breakpoint_depth.pl -")
+    assert sorted(b"".join(clip_seg).splitlines()) == clip and clip
+    di = sh(f"samtools view cat.bam | perl {SRC}/caculate_clipDI_cov.pl - 3", tmp_path)
+    for i, out in enumerate(per_seg(f"samtools view -M -L {{s}} cat.bam "
+                                    f"| perl {SRC}/caculate_clipDI_cov.pl - 3")):
+        (tmp_path / f"di{i}").write_bytes(out)
+    merged = sh(f"perl {PATCH}/asmqc_merge.pl dici " + " ".join(f"di{i}" for i in range(len(segs))),
+                tmp_path)
+    kinds = [ln.split(b"\t")[4] for ln in merged.splitlines()]
+    assert kinds == sorted(kinds, key=lambda k: k == b"I")  # all D, then all I
+    assert sorted(merged.splitlines()) == sorted(di.splitlines()) and di
+
+    # table readers per segment, merged, against one pass over the whole table
+    full = sh("samtools depth -a cat.bam", tmp_path)
+    (tmp_path / "full").write_bytes(full)
+    (tmp_path / "LRout").mkdir()
+    (tmp_path / "SRout").mkdir()
+    (tmp_path / "bk").write_text("".join(f"{c}\t{p}\t{rng.choice('+-')}\t{rng.randint(2, 9)}\n"
+                                         for c, p in sites(rng, seqs, 200)))
+    whole = {
+        "eff": sh(f"perl {SRC}/LReffect_size.pl full 100 0.05", tmp_path),
+        "nonmap": (tmp_path / "LRout/Nonmap.loc").read_bytes(),
+        "bk": sh(f"perl {SRC}/synthesize_LRbkdep_and_alldep.pl bk full", tmp_path),
+        "srbk": sh(f"perl {SRC}/synthesize_SRbkdep_and_alldep.pl bk full", tmp_path),
+        "dep0": sh(f"perl {SRC}/search_dep0.pl full", tmp_path),
+        "seff": sh(f"perl {SRC}/SReffect_size.pl full", tmp_path),
+    }
+    for i, s in enumerate(segs):
+        sh(f"samtools view -h -M -L {s} cat.bam | samtools depth -a - | perl {PATCH}/asmqc_fanout.pl "
+           f"'perl {PATCH}/LReffect_size.pl /dev/stdin 100 0.05 p{i}.nonmap > p{i}.eff' "
+           f"'perl {PATCH}/synthesize_LRbkdep_and_alldep.pl bk /dev/stdin > p{i}.bk' "
+           f"'perl {PATCH}/synthesize_SRbkdep_and_alldep.pl bk /dev/stdin > p{i}.srbk' "
+           f"'perl {PATCH}/search_dep0.pl /dev/stdin > p{i}.dep0' "
+           f"'perl {PATCH}/SReffect_size.pl /dev/stdin p{i}.snonmap > p{i}.seff'", tmp_path)
+    ps = range(len(segs))
+    cat = lambda ext: b"".join((tmp_path / f"p{i}.{ext}").read_bytes() for i in ps)
+    merge = lambda mode, ext: sh(f"perl {PATCH}/asmqc_merge.pl {mode} "
+                                 + " ".join(f"p{i}.{ext}" for i in ps), tmp_path)
+    assert merge("effsize", "eff") == whole["eff"] and whole["eff"]
+    assert cat("nonmap") == whole["nonmap"] and whole["nonmap"]
+    assert cat("bk") == whole["bk"] and whole["bk"]
+    assert cat("srbk") == whole["srbk"] and whole["srbk"]
+    assert merge("dep0", "dep0") == whole["dep0"]
+    assert merge("effsize", "seff") == whole["seff"]

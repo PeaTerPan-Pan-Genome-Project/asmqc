@@ -6,12 +6,15 @@
 #
 # Splits each depth line with index/substr instead of split /\s+/, about twice
 # as fast on samtools depth output (tab-separated: sequence, position, depth).
+# An optional fourth argument replaces the fixed LRout/Nonmap.loc (used when the
+# genome is processed in segments).
 use strict;
 
-my ($lrdep_file, $avgdep, $depratio) = @ARGV;
+my ($lrdep_file, $avgdep, $depratio, $nonmap) = @ARGV;
+$nonmap //= "LRout/Nonmap.loc";
 my $low = int($avgdep * $depratio) + 1;
 open my $in, '<', $lrdep_file or die "$lrdep_file: $!";
-open my $out, '>', "LRout/Nonmap.loc" or die "LRout/Nonmap.loc: $!";
+open my $out, '>', $nonmap or die "$nonmap: $!";
 my %depmin;
 while (my $l = <$in>) {
     my $t1 = index($l, "\t");

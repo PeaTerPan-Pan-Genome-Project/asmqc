@@ -400,3 +400,27 @@ M9 on synthetic data: every CRAQ file identical to unpatched CRAQ 1.10 (up to
 CRAQ's own hash-order rows); only the depth tables are gone. 30 M-line table:
 long-read stream readers 18.7 s together vs 100.8 s for the originals in
 sequence. Real-data validation: compare a JI1006 run with 0.1.2.
+
+### Concurrent mapping and segmented CRAQ passes (2026-10-06, 0.1.4)
+
+Mapping: `map_reads` threads come from `asmqc.plan.map_threads` (largest
+remainder of cores by input bytes per read type), so HiFi and Illumina map
+at the same time; in 0.1.1 they ran one after the other (4,086 s + 2,912 s at
+a mean load of 46 and 51 of 64 cores). BAM records are identical with any
+thread count (checked on synthetic data).
+
+CRAQ: the clip scan (`caculate_breakpoint_depth.pl`) and indel scan
+(`caculate_clipDI_cov.pl`) keep no state across sequences and print in Perl
+hash order, except that the indel scan prints all deletions before all
+insertions (a later step keys on position, so an insertion wins over a
+deletion at the same site). The patched drivers run the BAM filter, the
+scans and the depth stream per segment of whole sequences (contiguous in
+header order, so concatenated parts follow table order), CRAQ's `-t`
+segments at a time. Region access uses `samtools view -M -L segment.bed` on
+the indexed BAM (CRAQ links the input BAM without its index; the drivers
+resolve the link). Joins: `cat` for table-ordered outputs and the clip scan,
+`asmqc_merge.pl` for the indel scan (D then I), the effective-size counts and
+`search_dep0.pl` (string-sorted sequences). `tests/unit/test_craq_patch.py`
+compares segmented with genome-wide results for 1, 2, 3 and 8 segments on a
+BAM with clipped and indel-bearing read clusters. M9 and M11 on synthetic
+data are identical to 0.1.3, and so are CRAQ's filtered BAMs (records).
