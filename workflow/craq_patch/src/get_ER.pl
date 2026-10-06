@@ -7,8 +7,8 @@
 # The original keeps every per-base depth of a chromosome in a nested hash (up
 # to ~750 M entries, ~130 GB for a pea chromosome) and reads only
 # +-window*window_extend_num bp around each candidate. This version streams the
-# depth file once with a ring buffer and evaluates a candidate as soon as its
-# window has been read; window sums grow incrementally (integer depths, so the
+# depth file once with a ring buffer, skips lines outside every window and
+# evaluates a candidate as soon as its window has been read; window sums grow incrementally (integer depths, so the
 # averages are bit-identical). Kept on purpose, as in the original:
 #  - the first depth line of every chromosome is not stored;
 #  - a chromosome with no stored line yields nothing;
@@ -101,6 +101,8 @@ while (my $l = <$dp>) {
     my $t2 = index($l, "\t", $t1 + 1);
     my $p = substr($l, $t1 + 1, $t2 - $t1 - 1);
     evaluate($pend[$pi++][1]) while $pi < @pend && $pend[$pi][0] < $p;
+    # not within any pending window (pend is ordered by pos + span): not needed
+    next if $pi >= @pend || $p < $pend[$pi][0] - 2 * $span;
     my $t3 = index($l, "\t", $t2 + 1);
     my $d = $t3 < 0 ? substr($l, $t2 + 1) : substr($l, $t2 + 1, $t3 - $t2 - 1);
     chomp $d;

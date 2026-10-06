@@ -7,7 +7,7 @@
 # The original keeps every per-base depth of a chromosome in a nested hash and
 # reads only +-10 bp around each clip site. This version streams the depth
 # file once with a ring buffer and evaluates a site as soon as its window has
-# been read. Kept on purpose, as in the original:
+# been read; lines outside every window are skipped. Kept on purpose, as in the original:
 #  - the first depth line of every chromosome is not stored;
 #  - a chromosome with no stored line yields nothing;
 #  - a site with no position defined on both sides yields nothing ("next"
@@ -85,6 +85,8 @@ while (my $l = <$dp>) {
     my $t2 = index($l, "\t", $t1 + 1);
     my $p = substr($l, $t1 + 1, $t2 - $t1 - 1);
     evaluate($pend[$pi++][1]) while $pi < @pend && $pend[$pi][0] < $p;
+    # not within any pending window (pend is ordered by pos + span): not needed
+    next if $pi >= @pend || $p < $pend[$pi][0] - 2 * $span;
     my $t3 = index($l, "\t", $t2 + 1);
     my $d = $t3 < 0 ? substr($l, $t2 + 1) : substr($l, $t2 + 1, $t3 - $t2 - 1);
     chomp $d;

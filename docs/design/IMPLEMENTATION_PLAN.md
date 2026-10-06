@@ -376,3 +376,27 @@ replacements are caught. On a 30 M-line table: 1.2–3.3× faster, hash-based
 scripts at under 5 % of the memory. M9 on synthetic data: identical results to
 0.1.1; CRAQ intermediates identical up to row order (CRAQ's own
 `caculate_breakpoint_depth.pl` writes in hash order).
+
+### CRAQ without depth tables (2026-10-06, 0.1.3)
+
+Stage 1 and 2 of the no-table plan. Readers of `LR_sort.depth`: effective
+size (+ `LRout/Nonmap.loc`), `synthesize_LRbkdep`, `synthesize_clipDIcov`,
+`get_ER` (AQI). Readers of `SR_sort.depth`: effective size (+
+`SRout/Nonmap.loc`), `synthesize_SRbkdep`, `search_dep0`,
+`LRcoverRate_srdep_filter` (AQI). Clip and indel sites need only the BAM, so
+the patched drivers extract them first and stream one depth table per BAM to
+all within-pass readers (`asmqc_fanout.pl`: block copy to child pipes; fails
+if a child fails, unlike `tee` with FIFOs, which hangs, or process
+substitution, which loses exit codes). The AQI lookups cross read types and
+run after both passes; they use region queries. Checked on synthetic BAMs:
+region output equals the full table (order, read-free stretches, regions past
+the end, unsorted and overlapping BED); `samtools depth -a -Q 20` equals
+CRAQ's `samtools view -q 20 | samtools depth -a -`; sequences without reads
+(also: only MAPQ < 20 reads) are omitted by both. Region output is still
+limited to the sequences seen in the stream. Tests: contract test of the
+region helper (mutations caught), original window scripts on full vs region
+input, fan-out failure handling, effect-size scripts incl. `Nonmap.loc`.
+M9 on synthetic data: every CRAQ file identical to unpatched CRAQ 1.10 (up to
+CRAQ's own hash-order rows); only the depth tables are gone. 30 M-line table:
+long-read stream readers 18.7 s together vs 100.8 s for the originals in
+sequence. Real-data validation: compare a JI1006 run with 0.1.2.

@@ -4,6 +4,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions
 follow semantic versioning; results are comparable only within one
 `MAJOR.MINOR` version.
 
+## [0.1.3] - 2026-10-06
+
+M9 (CRAQ) without per-base depth tables; results identical to 0.1.2.
+
+### Changed
+
+- CRAQ no longer writes its two `samtools depth -a` tables (about 150 GB
+  of work space for a pea genome). One depth stream per BAM feeds all its
+  readers at once; the two lookups in CRAQ's final stage query the BAMs by
+  region. Patched copies of CRAQ's `runLR.sh`, `runSR.sh`, `runAQI.sh`,
+  `runAQI_SMS.sh` and streaming versions of `LReffect_size.pl` and
+  `SReffect_size.pl` join the overlay in `workflow/craq_patch/src/`.
+- CRAQ's long-read clip and indel scans run side by side.
+
 ## [0.1.2] - 2026-10-06
 
 Faster and leaner M9 (CRAQ); results identical to 0.1.1.

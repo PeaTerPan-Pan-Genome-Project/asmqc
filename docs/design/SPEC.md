@@ -765,16 +765,31 @@ run; wall time is the longer pass instead of the sum. `out_final.Report` is
 copied with its per-sequence rows in assembly order (CRAQ writes them in
 Perl hash order).
 
-CRAQ runs from a copy of its `bin/` and `src/` in the workdir, in which six
-scripts are replaced by the streaming versions in `workflow/craq_patch/src/`
-(MIT, from CRAQ 1.10; origin in each header): `get_ER.pl`,
-`LRcoverRate_srdep_filter.pl`, `synthesize_LRbkdep_and_alldep.pl`,
-`synthesize_SRbkdep_and_alldep.pl`, `synthesize_clipDIcov_and_alldep.pl`,
-`search_dep0.pl`. The originals load per-base depth tables (75 GB for a pea
-genome) into Perl hashes to read a few windows; the replacements stream them
-once. Output is byte-identical to the originals
-(`tests/unit/test_craq_patch.py` compares both on generated tables); the env
-is not modified. Their md5s are in the manifest under `tool_patches`.
+CRAQ runs from a copy of its `bin/` and `src/` in the workdir, overlaid with
+`workflow/craq_patch/src/` (MIT, from CRAQ 1.10; origin in each header). The
+env is not modified. Two changes, both with byte-identical results:
+- **No per-base depth tables.** CRAQ 1.10 writes `samtools depth -a` tables
+  for both read types (about 75 GB each for a pea genome) and reads them with
+  several scripts in turn. The patched `runLR.sh` and `runSR.sh` extract clip
+  and indel sites from the BAM first, then stream one depth table per BAM to
+  all its readers at once (`asmqc_fanout.pl`) without writing it; they also
+  record the sequences in the stream (`*_depth.seqs`) and the short-read MAPQ
+  filter. The patched `runAQI.sh` takes the two cross-read-type lookups
+  (`get_ER.pl`: long-read depth around short-read candidates;
+  `LRcoverRate_srdep_filter.pl`: short-read depth around long-read
+  candidates) from region queries on the BAMs (`asmqc_region_depth.pl`:
+  `samtools depth -a [-Q MAPQ] -b windows`, limited to the sequences in the
+  stream, plus position 1, which CRAQ's window scripts never store).
+- **Streaming scripts.** Eight scripts that loaded the tables into Perl hashes
+  or parsed every line with a regex are replaced: `get_ER.pl`,
+  `LRcoverRate_srdep_filter.pl`, `synthesize_LRbkdep_and_alldep.pl`,
+  `synthesize_SRbkdep_and_alldep.pl`, `synthesize_clipDIcov_and_alldep.pl`,
+  `search_dep0.pl`, `LReffect_size.pl`, `SReffect_size.pl`.
+
+`tests/unit/test_craq_patch.py` compares each replacement with the original
+on generated tables, checks the region output against the full table line
+for line, and runs the original window scripts on both. The md5 of every
+overlay file is in the manifest under `tool_patches`.
 
 **Parse `out_final.Report`:** AQI, R-AQI, S-AQI, CRE count, CSE count. Keep
 the CRE and CSE BEDs.
@@ -1033,6 +1048,7 @@ The concrete data and expected values are kept privately by the maintainers.
 | 2026-10-03 | M4: T2T requires both arms capped and no gap (N-run ≥ 10 bp) |
 | 2026-10-04 | Thread/memory budget: CRAQ capped, other modules run alongside it; CRAQ long- and short-read passes run concurrently (bash shim); benchmarks kept in `logs/benchmarks/` |
 | 2026-10-06 | CRAQ: six depth-table scripts replaced by output-identical streaming versions (issue #2); patch release, recorded under `tool_patches` |
+| 2026-10-06 | CRAQ: no per-base depth tables written; one streamed depth pass per BAM, region queries for the AQI lookups (patched runLR/runSR/runAQI drivers); results identical |
 
 ## 13. Open points (to the maintainers before deciding)
 

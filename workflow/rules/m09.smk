@@ -35,12 +35,13 @@ rule m09_craq:
         # exists), and a samtools shim on PATH turns "index" into "index -c".
         # With short reads, the bash shim runs CRAQ's long- and short-read
         # passes concurrently (see workflow/bin/craq_shim/bash).
-        # CRAQ runs from a copy of its bin/ and src/ with the streaming
-        # replacements in workflow/craq_patch/src (same output, a fraction of
-        # the memory and time); the env itself is not modified.
+        # CRAQ runs from a copy of its bin/ and src/ overlaid with
+        # workflow/craq_patch/src: streaming script replacements and drivers
+        # that never write the per-base depth tables (same output, a fraction
+        # of the time, memory and disk); the env itself is not modified.
         "{params.pre}( mkdir -p {W}/m09/craq/inputs && cd {W}/m09/craq && rm -rf output lr.status sw"
         " && c=$(dirname $(readlink -f $(command -v craq))) && mkdir sw"
-        " && cp -rL $c sw/bin && cp -rL $c/../src sw/src && cp {params.patch}/*.pl sw/src/"
+        " && cp -rL $c sw/bin && cp -rL $c/../src sw/src && cp {params.patch}/* sw/src/"
         " && for b in {input.sms} {input.ngs}; do n=$(basename $b);"
         " ln -sf $b inputs/$n && ln -sf $b.csi inputs/$n.csi && ln -sf $b.csi inputs/$n.bai; done"
         " && ASMQC_CRAQ_PARALLEL={params.parallel} ASMQC_CRAQ_LR_STATUS={W}/m09/craq/lr.status"

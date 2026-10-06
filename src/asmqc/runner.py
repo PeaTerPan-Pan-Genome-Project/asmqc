@@ -270,7 +270,7 @@ def tool_patches() -> dict[str, dict[str, str]]:
     """md5 of each replaced CRAQ script (workflow/craq_patch/src)."""
     src = asmqc_home() / "workflow" / "craq_patch" / "src"
     return {"craq": {f.name: hashlib.md5(f.read_bytes()).hexdigest()
-                     for f in sorted(src.glob("*.pl"))}}
+                     for f in sorted(src.iterdir()) if f.is_file()}}
 
 
 def copy_benchmarks(work: Path, dest: Path) -> None:
