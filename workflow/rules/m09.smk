@@ -17,6 +17,7 @@ rule m09_craq:
         pre=env("craq", "m09"),
         ngs="-ngs inputs/illumina.bam" if M09_NGS else "",
         shim=Path(workflow.basedir) / "bin" / "craq_shim",
+        patch=Path(workflow.basedir) / "craq_patch" / "src",
         parallel=1 if M09_NGS else 0,
     threads: M09_THREADS
     resources:
@@ -34,11 +35,16 @@ rule m09_craq:
         # exists), and a samtools shim on PATH turns "index" into "index -c".
         # With short reads, the bash shim runs CRAQ's long- and short-read
         # passes concurrently (see workflow/bin/craq_shim/bash).
-        "{params.pre}( mkdir -p {W}/m09/craq/inputs && cd {W}/m09/craq && rm -rf output lr.status"
+        # CRAQ runs from a copy of its bin/ and src/ with the streaming
+        # replacements in workflow/craq_patch/src (same output, a fraction of
+        # the memory and time); the env itself is not modified.
+        "{params.pre}( mkdir -p {W}/m09/craq/inputs && cd {W}/m09/craq && rm -rf output lr.status sw"
+        " && c=$(dirname $(readlink -f $(command -v craq))) && mkdir sw"
+        " && cp -rL $c sw/bin && cp -rL $c/../src sw/src && cp {params.patch}/*.pl sw/src/"
         " && for b in {input.sms} {input.ngs}; do n=$(basename $b);"
         " ln -sf $b inputs/$n && ln -sf $b.csi inputs/$n.csi && ln -sf $b.csi inputs/$n.bai; done"
         " && ASMQC_CRAQ_PARALLEL={params.parallel} ASMQC_CRAQ_LR_STATUS={W}/m09/craq/lr.status"
-        " PATH={params.shim}:$PATH craq -g {input.fa} -sms inputs/$(basename {input.sms})"
+        " PATH={params.shim}:$PATH perl {W}/m09/craq/sw/bin/craq -g {input.fa} -sms inputs/$(basename {input.sms})"
         " {params.ngs} -t {threads} ) > {log} 2>&1"
 
 

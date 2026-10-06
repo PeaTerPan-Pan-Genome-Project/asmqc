@@ -217,6 +217,7 @@ def run(opts: RunOptions, command_line: str) -> int:
         "inputs": inputs_info(opts, assembly_md5),
         "chromosome_map": opts.chromosomes,
         "tools": tools.all_versions(),
+        "tool_patches": tool_patches(),
         "reference_data": reference_data(),
         "parameters": PARAMS,
         "modules": {m: {"status": r.status, "read_type": plan[m].read_type,
@@ -263,6 +264,13 @@ def path_placeholders(opts: RunOptions) -> list[tuple[str, str]]:
         if d and len(d) > 1:
             pairs.setdefault(d, "<tmp>" if d == os.environ.get("TMPDIR") else "<home>")
     return sorted(pairs.items(), key=lambda kv: -len(kv[0]))
+
+
+def tool_patches() -> dict[str, dict[str, str]]:
+    """md5 of each replaced CRAQ script (workflow/craq_patch/src)."""
+    src = asmqc_home() / "workflow" / "craq_patch" / "src"
+    return {"craq": {f.name: hashlib.md5(f.read_bytes()).hexdigest()
+                     for f in sorted(src.glob("*.pl"))}}
 
 
 def copy_benchmarks(work: Path, dest: Path) -> None:

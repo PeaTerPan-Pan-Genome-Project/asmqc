@@ -164,12 +164,14 @@ Wall time per stage, with reads (64 threads):
 | M2 (QUAST) | 6 min |
 | M1, M4, M5, M7, prep and scan | 9 min together |
 
-These times are from 0.1.0, where every module waited for CRAQ. 0.1.1
-runs the other modules alongside CRAQ and CRAQ's long- and
-short-read passes concurrently; the expected saving is several hours, to be
-measured. Peak memory was not recorded for these runs; plan for 128 GB of
-RAM and about 500 GB of work space with reads, 64 GB and 60 GB without.
-Each run now keeps per-rule wall time and peak memory in
+These times are from 0.1.0, where every module waited for CRAQ. In 0.1.1
+the other modules run alongside CRAQ and CRAQ's two read passes run
+concurrently: the same run took 14.7 h, of which CRAQ 12.4 h, with a peak of
+116 GB (CRAQ). 0.1.2 replaces the CRAQ scripts that loaded per-base depth
+tables into memory with streaming versions; the expected run time is roughly
+half of that, with a much lower memory peak (to be measured). Plan for
+128 GB of RAM and about 500 GB of work space with reads, 64 GB and 60 GB
+without. Each run keeps per-rule wall time and peak memory in
 `logs/benchmarks/`.
 
 Put `--workdir` on fast scratch with enough space. A free-space shortfall is
@@ -240,6 +242,10 @@ development decisions.
 * The telomere karyoplot is adapted from `scripts/telomere_karyoplot.py` in
   [kavonrtep/ont_genome_assembly_pipeline](https://github.com/kavonrtep/ont_genome_assembly_pipeline)
   (GPL-3.0); origin and changes are in the header of `src/asmqc/karyoplot.py`.
+* `workflow/craq_patch/src/` holds streaming replacements for six scripts of
+  [CRAQ](https://github.com/JiaoLaboratory/CRAQ) 1.10 (MIT,
+  `workflow/craq_patch/LICENSE.CRAQ`) with byte-identical output; origin in
+  each file header.
 * Tools: mm2-plus, minimap2, QUAST, tidk, BLAST+, BUSCO, miniprot, meryl,
   Merqury, CRAQ, samtools, bcftools, bedtools, seqkit, Snakemake.
 * Reference data: BUSCO lineage `fabales_odb12.2` (OrthoDB 12.2),

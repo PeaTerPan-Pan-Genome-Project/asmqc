@@ -374,6 +374,7 @@ If NCBI's FASTA formatting ever changes the file md5, verify the md5 of the
   },
   "chromosome_map": {"old1": "chr1"},
   "tools": {"mm2plus": "1.3", "busco": "6.1.0"},
+  "tool_patches": {"craq": {"get_ER.pl": "<md5>"}},
   "reference_data": {"fabales_odb12.2": {"date": "2026-05-13", "markers": 7702, "md5": "5505de60…"}},
   "parameters": {"m02": {"nsplit_min_gap": 10}, "m04": {"window": 10000, "min_repeats": 25, "terminal_bp": 50000}},
   "modules": {"m08": {"status": "ok", "read_type": "illumina", "reason": null}}
@@ -764,6 +765,17 @@ run; wall time is the longer pass instead of the sum. `out_final.Report` is
 copied with its per-sequence rows in assembly order (CRAQ writes them in
 Perl hash order).
 
+CRAQ runs from a copy of its `bin/` and `src/` in the workdir, in which six
+scripts are replaced by the streaming versions in `workflow/craq_patch/src/`
+(MIT, from CRAQ 1.10; origin in each header): `get_ER.pl`,
+`LRcoverRate_srdep_filter.pl`, `synthesize_LRbkdep_and_alldep.pl`,
+`synthesize_SRbkdep_and_alldep.pl`, `synthesize_clipDIcov_and_alldep.pl`,
+`search_dep0.pl`. The originals load per-base depth tables (75 GB for a pea
+genome) into Perl hashes to read a few windows; the replacements stream them
+once. Output is byte-identical to the originals
+(`tests/unit/test_craq_patch.py` compares both on generated tables); the env
+is not modified. Their md5s are in the manifest under `tool_patches`.
+
 **Parse `out_final.Report`:** AQI, R-AQI, S-AQI, CRE count, CSE count. Keep
 the CRE and CSE BEDs.
 
@@ -1020,6 +1032,7 @@ The concrete data and expected values are kept privately by the maintainers.
 | 2026-10-02 | CSI indexes for all BAMs and VCFs (pea chromosomes exceed the 2^29 BAI/TBI limit); CRAQ gets `.bai` links to CSI and a samtools shim |
 | 2026-10-03 | M4: T2T requires both arms capped and no gap (N-run ≥ 10 bp) |
 | 2026-10-04 | Thread/memory budget: CRAQ capped, other modules run alongside it; CRAQ long- and short-read passes run concurrently (bash shim); benchmarks kept in `logs/benchmarks/` |
+| 2026-10-06 | CRAQ: six depth-table scripts replaced by output-identical streaming versions (issue #2); patch release, recorded under `tool_patches` |
 
 ## 13. Open points (to the maintainers before deciding)
 

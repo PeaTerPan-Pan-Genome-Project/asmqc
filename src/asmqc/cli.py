@@ -20,6 +20,7 @@ def _version(args: argparse.Namespace) -> int:
         "git_commit": info["git_commit"],
         "lockfile_sha256": info["lockfile_sha256"],
         "tools": tools.all_versions(),
+        "tool_patches": runner.tool_patches(),
         "reference_data": runner.reference_data(),
     }
     print(json.dumps(out, indent=2))

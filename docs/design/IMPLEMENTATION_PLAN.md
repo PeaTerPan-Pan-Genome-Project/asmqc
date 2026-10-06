@@ -359,3 +359,20 @@ runs of ≥ 9 bp that coding sequence rarely contains. M4 T2T now also
 requires no gap (SPEC §8.4). Released as `0.1.0rc5`; `0.1.0rc6` adds the
 template row missed in rc5. `0.1.0` (2026-10-05) is the rc6 code after a
 full JI1006 run with reads passed.
+
+### CRAQ script replacements (2026-10-06, 0.1.2)
+
+Issue #2: after 0.1.1, CRAQ was 12.4 h of a 14.7 h JI1006 run (mean load
+0.81, max_rss 116 GB): about 6.2 h for the concurrent read passes and 6.2 h
+for the AQI stage. Six CRAQ scripts load per-base depth tables (75 GB) into
+Perl hashes or regex every line; `workflow/craq_patch/src/` replaces them with
+streaming versions (two from the issue, four new). CRAQ is copied into
+`work/m09/craq/sw/` and run with the replacements, so the env stays pristine
+and development and image behave alike. `tests/unit/test_craq_patch.py`
+compares each original and replacement byte for byte on seeded tables
+(several sequences, one-line and missing sequences, sites at ends, zero runs,
+seven get_ER parameter sets, run lengths 149/150); mutations of the
+replacements are caught. On a 30 M-line table: 1.2–3.3× faster, hash-based
+scripts at under 5 % of the memory. M9 on synthetic data: identical results to
+0.1.1; CRAQ intermediates identical up to row order (CRAQ's own
+`caculate_breakpoint_depth.pl` writes in hash order).

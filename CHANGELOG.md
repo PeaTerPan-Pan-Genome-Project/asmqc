@@ -4,6 +4,21 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions
 follow semantic versioning; results are comparable only within one
 `MAJOR.MINOR` version.
 
+## [0.1.2] - 2026-10-06
+
+Faster and leaner M9 (CRAQ); results identical to 0.1.1.
+
+### Changed
+
+- CRAQ runs from a copy in the workdir in which six scripts that loaded
+  per-base depth tables into Perl hashes are replaced by streaming
+  versions with byte-identical output (`get_ER.pl`,
+  `LRcoverRate_srdep_filter.pl`, `synthesize_LRbkdep_and_alldep.pl`,
+  `synthesize_SRbkdep_and_alldep.pl`, `synthesize_clipDIcov_and_alldep.pl`,
+  `search_dep0.pl`). On test tables they are 1.2–3.3× faster and the
+  hash-based ones use under 5 % of the memory. Their md5s are in the
+  manifest under `tool_patches`.
+
 ## [0.1.1] - 2026-10-05
 
 Faster runs with long reads; results identical to 0.1.0.
