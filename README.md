@@ -31,9 +31,30 @@ the modules. M8 and M11 use Illumina reads if given, otherwise HiFi; ONT is
 never used for them. M9 uses HiFi if given, otherwise ONT, plus Illumina when
 given.
 
+**CRAQ**: M9 runs CRAQ 1.10 from a copy in the work directory with patched
+drivers and scripts (`workflow/craq_patch/`). They stream data that CRAQ
+loads into memory and run its steps per chromosome in parallel; the output is
+byte-identical to unpatched CRAQ.
+
 **Determinism**: the same inputs on the same image give identical values in
 `qc_summary.tsv` (except `run_date`). Results are comparable only between
 runs of the same `MAJOR.MINOR` image version.
+
+## Requirements
+
+* **CPU**: x86-64 with AVX2 (required by mm2-plus); asmqc stops with an
+  error otherwise. 64 threads recommended; the default is 32.
+* **Memory**: 256 GB (`--mem-gb 256`) is tested for runs with reads; the
+  largest single step used 72 GB. 128 GB, the default, is expected to work
+  but has not been measured. Assembly-only runs: 64 GB.
+* **Disk**: about 400 GB free for `--workdir` with reads, on local disk;
+  the run peaked at 333 GB. The result directory stays below 50 MB.
+* **Software**: Singularity or Apptainer to run the image; tested with
+  Apptainer 1.4. Nothing else is installed on the host.
+* **Network**: needed only to pull the image. Runs are offline; all
+  reference data are inside the image.
+
+The figures are for one 4.3 Gb pea assembly; see [Resources](#resources).
 
 ## Installation
 
@@ -41,12 +62,13 @@ Pull the image and check its sha256 against the value published with the
 release:
 
 ```
-singularity pull asmqc_1.0.0.sif oras://ghcr.io/peaterpan-pan-genome-project/asmqc/sif:1.0.0
-sha256sum asmqc_1.0.0.sif
+singularity pull asmqc_0.1.5.sif oras://ghcr.io/peaterpan-pan-genome-project/asmqc/sif:0.1.5
+sha256sum asmqc_0.1.5.sif
 ```
 
-The image needs no network at run time. The CPU must support AVX2
-(required by mm2-plus); asmqc stops with an error otherwise.
+Releases are listed on the
+[GitHub releases page](https://github.com/PeaTerPan-Pan-Genome-Project/asmqc/releases);
+use the same `MAJOR.MINOR` version as the other groups.
 
 To build the image yourself, run `./build.sh` in a clone of this repository
 (Apptainer 1.4, network access during the build). The build downloads every
@@ -61,18 +83,18 @@ singularity run [-B <bind paths>] asmqc_<version>.sif run \
 
 Bind every directory that holds inputs or outputs (`-B /data,/scratch`).
 
-**Example 1, assembly only** (M1, M2, M4–M7; about 6–12 h for 4.3 Gb):
+**Example 1, assembly only** (M1, M2, M4–M7; about 30 min for 4.3 Gb):
 
 ```
-singularity run -B /data asmqc_1.0.0.sif run \
+singularity run -B /data asmqc_0.1.5.sif run \
     --assembly /data/PS01.fa.gz --agp /data/PS01.agp --label PS01 \
     --outdir /data/qc --threads 32 --mem-gb 64
 ```
 
-**Example 2, with Illumina reads** (adds M8 and M11):
+**Example 2, with Illumina reads** (adds M8 and M11; mapping dominates the run time):
 
 ```
-singularity run -B /data,/scratch asmqc_1.0.0.sif run \
+singularity run -B /data,/scratch asmqc_0.1.5.sif run \
     --assembly /data/PS01.fa.gz --agp /data/PS01.agp --label PS01 \
     --illumina /data/PS01_R1.fq.gz,/data/PS01_R2.fq.gz \
     --reads-used-in-assembly no \
@@ -84,7 +106,7 @@ ONT reads are mapped only when no HiFi reads are given; with both, the ONT
 files are recorded in the manifest but not used:
 
 ```
-singularity run -B /data,/scratch asmqc_1.0.0.sif run \
+singularity run -B /data,/scratch asmqc_0.1.5.sif run \
     --assembly /data/PS01.fa.gz --label PS01 \
     --chromosomes Chr1=chr1,Chr2=chr2,Chr3=chr3,Chr4=chr4,Chr5=chr5,Chr6=chr6,Chr7=chr7 \
     --hifi /data/PS01_hifi.fq.gz --ont /data/PS01_ont.fq.gz --ont-chemistry r10 \
@@ -142,37 +164,38 @@ breakpoints in M9.
 
 ## Resources
 
-Measured on one pea assembly (4.22 Gb, chr1–chr7 plus 56 unplaced
-sequences) on an AMD EPYC host, with the work directory on local disk. Wall
-times are from `run_manifest.json`; peak memory from `logs/benchmarks/`.
+Measured with asmqc 0.1.5 on a 4.3 Gb chromosome-level pea assembly
+(7 chromosomes up to 752 Mb, 56 unplaced scaffolds) on an AMD EPYC 9654
+host, workdir on local SSD:
 
-Assembly only (M1, M2, M4–M7), 32 threads: 28 min.
+| Run type | Threads, memory | Wall time | CPU time | Peak memory (largest step) | Work disk (peak) |
+|---|---|---|---|---|---|
+| Assembly only (M1, M2, M4–M7) | 32, 128 GB | 28 min | not measured | 23 GB (M7) | not measured |
+| Illumina 58 Gb (~13×) + HiFi (4 cells), all modules | 64, 256 GB | 3 h 11 min | ~110 CPU-hours | 72 GB (meryl) | 333 GB |
 
-With Illumina (58 Gb, ~14×) and HiFi (~21×) reads, 64 threads and
-`--mem-gb 256`. Results are identical in all versions; the run time fell as
-CRAQ (M9) was made to run alongside the other modules and its scripts were
-rewritten:
+Where the time goes in the run with reads:
 
-| Version | Total | CRAQ (M9) | CRAQ peak memory | Work space peak |
-|---|---|---|---|---|
-| 0.1.0 | 18.4 h | 15.1 h | not recorded | not recorded |
-| 0.1.1 | 14.7 h | 12.4 h | 114 GiB | > 148 GB (depth tables alone) |
-| 0.1.2 | 8.0 h | 5.8 h | 92 GiB | not recorded |
-| 0.1.3 | 5.8 h | 3.2 h | 92 GiB | 261 GB |
-| 0.1.4 | 4.7 h | 2.5 h | 92 GiB | 327 GB |
+| Stage | Wall time | Note |
+|---|---|---|
+| Read mapping (Illumina and HiFi at the same time) | 1 h 41 min | ~90 of the 110 CPU-hours; HiFi 41 GB, Illumina 33 GB memory |
+| CRAQ (M9) | 1 h 09 min | at most 16 threads, 4 GB memory |
+| meryl k-mer counting | 16 min | runs before mapping |
+| All other modules | under 32 min each | run alongside CRAQ |
 
-0.1.2–0.1.4 ran at the same time on one host, which made identical code
-13–22 % slower. 0.1.5 removes the step behind the 92 GiB CRAQ peak (about
-75 min of 0.1.4's CRAQ time); its times are to be measured. Read mapping
-takes about 2 h, M11 about 30 min, everything else less.
+Run time grows mainly with read volume (mapping). Runs with ONT reads,
+Illumina only or HiFi only, and deeper coverage have not been timed. The
+assembly-only time was measured on 0.1.0rc3; BUSCO (20 GB) and M7 (23 GB)
+can run at the same time.
 
-Plan for 128 GB of RAM and about 350 GB of work space with reads, 64 GB and
-60 GB without. In `run_manifest.json`, `wall_seconds` gives each stage's
-elapsed time and `rule_seconds` the sum of its rules' times (larger when
-rules of a stage run at the same time).
+The same run took 14 h 39 min with 0.1.1, with CRAQ at 12 h 21 min and
+114 GiB. 0.1.2 to 0.1.5 replaced the CRAQ steps that held per-base depth in
+memory; every release gave byte-identical results.
 
-Put `--workdir` on fast scratch with enough space. A free-space shortfall is
-reported as a warning before the run starts.
+Each run records per-rule wall time and peak memory in `logs/benchmarks/`.
+In `run_manifest.json`, `wall_seconds` gives each stage's elapsed time and
+`rule_seconds` the sum of its rules' times (larger when a stage's rules run
+at the same time). A free-space shortfall in `--workdir` is reported as a
+warning before the run starts.
 
 ## Output
 

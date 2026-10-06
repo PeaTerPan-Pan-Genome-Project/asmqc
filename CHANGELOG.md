@@ -4,6 +4,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions
 follow semantic versioning; results are comparable only within one
 `MAJOR.MINOR` version.
 
+## [Unreleased]
+
+### Changed
+
+- README: Requirements section (CPU, memory, disk, software, network);
+  Resources with the measured 0.1.5 run (3 h 11 min, 72 GB peak, 333 GB
+  work disk); examples point at the current image.
+
 ## [0.1.5] - 2026-10-07
 
 Shorter and leaner M9 (CRAQ); results identical to 0.1.4.
