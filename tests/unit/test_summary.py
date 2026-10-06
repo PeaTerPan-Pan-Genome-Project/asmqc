@@ -63,3 +63,21 @@ def test_write_read_round_trip(tmp_path):
     summary.write_summary(tmp_path / "qc.tsv", row)
     header, rows = summary.read_summary(tmp_path / "qc.tsv")
     assert header == schema.HEADER and rows == [row]
+
+
+def test_wall_seconds_concurrent_rules(tmp_path):
+    """Two map rules of 100 s each that ran at the same time: 100 s elapsed,
+    200 s of rule time; one later rule of another stage."""
+    import os
+
+    from asmqc import summary as sm
+
+    b = tmp_path / "benchmarks"
+    b.mkdir()
+    for name, secs, end in [("map.hifi.tsv", 100.0, 1000.0), ("map.illumina.tsv", 100.0, 1003.0),
+                            ("m09.craq.tsv", 50.0, 1100.0)]:
+        (b / name).write_text(f"s\th:m:s\n{secs}\t0:01:40\n")
+        os.utime(b / name, (end, end))
+    wall, rules = sm.wall_seconds(tmp_path)
+    assert wall == {"map": 103.0, "m09": 50.0}
+    assert rules == {"map": 200.0, "m09": 50.0}

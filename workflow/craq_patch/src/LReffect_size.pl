@@ -9,11 +9,12 @@
 # An optional fourth argument replaces the fixed LRout/Nonmap.loc (used when the
 # genome is processed in segments).
 use strict;
+# "-" reads standard input, as CRAQ's two-argument open() does.
 
 my ($lrdep_file, $avgdep, $depratio, $nonmap) = @ARGV;
 $nonmap //= "LRout/Nonmap.loc";
 my $low = int($avgdep * $depratio) + 1;
-open my $in, '<', $lrdep_file or die "$lrdep_file: $!";
+open my $in, '<', ($lrdep_file eq '-' ? '/dev/stdin' : $lrdep_file) or die "$lrdep_file: $!";
 open my $out, '>', $nonmap or die "$nonmap: $!";
 my %depmin;
 while (my $l = <$in>) {

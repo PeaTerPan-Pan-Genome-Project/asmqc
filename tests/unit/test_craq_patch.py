@@ -406,3 +406,107 @@ def test_segmented_passes(tmp_path, seed, nseg):
     assert cat("srbk") == whole["srbk"] and whole["srbk"]
     assert merge("dep0", "dep0") == whole["dep0"]
     assert merge("effsize", "seff") == whole["seff"]
+
+
+# --- issue #3: zero-depth list readers -----------------------------------------
+def nonmap(rng: random.Random, dep: str, shuffle: bool = False) -> str:
+    """Nonmap.loc lines (depth 0) from a depth table, optionally shuffled."""
+    lines = [ln + "\n" for ln in dep.splitlines() if ln.endswith("\t0")]
+    if shuffle:
+        rng.shuffle(lines)
+    return "".join(lines)
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+@pytest.mark.parametrize("shuffle", [False, True])
+def test_get_nonmap_region(tmp_path, seed, shuffle):
+    rng = random.Random(seed)
+    dep, _ = depth_table(rng)
+    (tmp_path / "sr").write_text(nonmap(rng, dep, shuffle))
+    dep2, _ = depth_table(random.Random(seed + 100))
+    (tmp_path / "lr").write_text(nonmap(rng, dep2, shuffle))
+    out = same("get_nonmap_region.pl", ["sr", "sr"], tmp_path)  # as in "Search noisy error region"
+    assert out
+    assert same("get_nonmap_region.pl", ["sr", "lr"], tmp_path)  # as in "Create final report"
+
+
+def test_get_nonmap_region_edges(tmp_path):
+    """p and p+4 make one run, p and p+5 two; sequences out of string order;
+    a sequence only in the second file; duplicates."""
+    a = "".join(f"z\t{p}\t0\n" for p in [10, 14, 30, 35, 35, 100])
+    b = "".join(f"chr10\t{p}\t0\n" for p in [1, 2, 3, 50]) + "chr2\t7\t0\n"
+    (tmp_path / "f").write_text(a + b)
+    (tmp_path / "g").write_text(b + "only2\t5\t0\n" + a)
+    out = same("get_nonmap_region.pl", ["f", "f"], tmp_path).decode()
+    assert "z\t10\t17\t0\nz\t30\t33\t0\nz\t35\t38\t0\n" in out
+    same("get_nonmap_region.pl", ["f", "g"], tmp_path)
+    same("get_nonmap_region.pl", ["g", "f"], tmp_path)
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_remove_ngs_normal(tmp_path, seed):
+    rng = random.Random(seed)
+    dep, chroms = depth_table(rng)
+    (tmp_path / "nonmap").write_text(nonmap(rng, dep))
+    (tmp_path / "cov").write_text("".join(
+        f"{c}\t{p}\t+\t{rng.randint(0, 9)}\t{rng.choice([0, 1, 5, 20, 90])}\n"
+        for c, p in sites(rng, chroms, 300)))
+    (tmp_path / "cre").write_text("".join(
+        f"{c}\t{p}\t+\t{rng.randint(1, 9)}\t{rng.randint(1, 40)}\n"
+        for c, p in sites(rng, chroms, 300)))
+    out = same("remove_ngs_normal.pl", ["cov", "nonmap", "cre"], tmp_path)
+    assert out and len(out.splitlines()) < 300  # some kept, some removed
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_search_uncertain_region(tmp_path, seed):
+    """Same lines as the original, which prints them in hash order."""
+    rng = random.Random(seed)
+    regions = []
+    for c in ["chr1", "chr2", "u9"]:
+        p = 1
+        for _ in range(60):
+            p += rng.randint(1, 3000)
+            ln = rng.choice([100, 499, 500, 501, 2000, 8000])
+            regions.append(f"{c}\t{p}\t{p + ln}\t0\n")
+            p += ln
+    regions.append(regions[5])  # duplicate
+    (tmp_path / "bed").write_text("".join(regions))
+    errs = [f"{c}\t{rng.randint(1, 400000)}\t+\t3\t9\n" for c in ["chr1", "chr2", "x"]
+            for _ in range(150)]
+    s, e = (int(x) for x in regions[3].split("\t")[1:3])
+    errs += [f"chr1\t{s - 50}\t+\n", f"chr1\t{e + 51}\t+\n"]  # at the window edges
+    (tmp_path / "err").write_text("".join(errs))
+    a = run(SRC / "search_uncertain_region.pl", ["bed", "err"], tmp_path)
+    b = run(PATCH / "search_uncertain_region.pl", ["bed", "err"], tmp_path)
+    assert sorted(a.splitlines()) == sorted(b.splitlines()) and a
+    assert len(set(b.splitlines())) == len(b.splitlines())
+
+
+@pytest.mark.parametrize(("name", "args", "stdin"), [
+    ("search_uncertain_region.pl", ["-", "err"], "bed"),  # as in runAQI.sh: piped input
+    ("get_nonmap_region.pl", ["nm", "-"], "nm2"),
+    ("get_ER.pl", ["-", "cov", "10", "20", "0.1"], "dep"),
+    ("remove_ngs_normal.pl", ["cov", "-", "cov"], "nm"),
+    ("search_dep0.pl", ["-"], "dep"),
+])
+def test_dash_reads_stdin(tmp_path, name, args, stdin):
+    """CRAQ's scripts open their arguments with two-argument open(), where "-"
+    is standard input; runAQI.sh relies on it."""
+    rng = random.Random(1)
+    dep, chroms = depth_table(rng)
+    (tmp_path / "dep").write_text(dep)
+    (tmp_path / "nm").write_text(nonmap(rng, dep))
+    (tmp_path / "nm2").write_text(nonmap(rng, depth_table(random.Random(2))[0]))
+    (tmp_path / "cov").write_text("".join(f"{c}\t{p}\t+\t{rng.randint(0, 4)}\t{rng.randint(1, 40)}\n"
+                                          for c, p in sites(rng, chroms, 200)))
+    (tmp_path / "bed").write_text("".join(f"chrA\t{p}\t{p + 900}\t0\n" for p in range(1, 6000, 1200)))
+    (tmp_path / "err").write_text("chrA\t1250\t+\n")
+    outs = []
+    for src in (SRC, PATCH):
+        with (tmp_path / stdin).open("rb") as fh:
+            outs.append(subprocess.run(["perl", str(src / name), *args], stdin=fh, cwd=tmp_path,
+                                       capture_output=True, check=True).stdout)
+    if name == "search_uncertain_region.pl":
+        outs = [sorted(o.splitlines()) for o in outs]
+    assert outs[0] == outs[1] and outs[0], name

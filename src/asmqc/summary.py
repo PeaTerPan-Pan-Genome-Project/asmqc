@@ -91,12 +91,21 @@ def read_summary(path: Path) -> tuple[list[str], list[dict[str, str]]]:
     return header, [dict(zip(header, r, strict=True)) for r in body]
 
 
-def wall_seconds(work: Path) -> dict[str, float]:
-    """Sum Snakemake benchmark seconds per key (<key>.<rule>.tsv)."""
-    out: dict[str, float] = {}
+def wall_seconds(work: Path) -> tuple[dict[str, float], dict[str, float]]:
+    """Per stage key (<key>.<rule>.tsv): elapsed wall time, from the first
+    rule's start to the last rule's end, and the sum of the rules' times.
+    They differ when a stage's rules run at the same time (e.g. two read types
+    mapped at once). A benchmark file is written when its rule ends, so its
+    mtime is the end and mtime - s the start."""
+    spans: dict[str, list[float]] = {}
+    sums: dict[str, float] = {}
     for f in sorted((work / "benchmarks").glob("*.tsv")):
         key = f.name.split(".", 1)[0]
         with f.open() as fh:
-            rows = list(csv.DictReader(fh, delimiter="\t"))
-        out[key] = round(out.get(key, 0.0) + sum(float(r["s"]) for r in rows), 1)
-    return out
+            secs = sum(float(r["s"]) for r in csv.DictReader(fh, delimiter="\t"))
+        end = f.stat().st_mtime
+        lo, hi = spans.get(key, [end - secs, end])
+        spans[key] = [min(lo, end - secs), max(hi, end)]
+        sums[key] = sums.get(key, 0.0) + secs
+    return ({k: round(hi - lo, 1) for k, (lo, hi) in spans.items()},
+            {k: round(v, 1) for k, v in sums.items()})

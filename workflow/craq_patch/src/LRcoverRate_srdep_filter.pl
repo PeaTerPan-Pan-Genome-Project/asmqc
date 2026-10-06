@@ -10,13 +10,14 @@
 # first and keeps only the zero-depth positions inside a candidate window.
 # Assumes samtools depth order: positions ascending within a chromosome block.
 use strict;
+# "-" reads standard input, as CRAQ's two-argument open() does.
 
 if (@ARGV != 2) { print "perl $0  SR_dep_file LR_cover_file \n"; exit 1; }
 my ($sr_dep, $lrcover_rate) = @ARGV;
 my $W = 1500;
 
 my (@cand, %iv);
-open my $cr, '<', $lrcover_rate or die "$lrcover_rate: $!";
+open my $cr, '<', ($lrcover_rate eq '-' ? '/dev/stdin' : $lrcover_rate) or die "$lrcover_rate: $!";
 while (my $l = <$cr>) {
     chomp $l;
     my ($chr, $pos) = (split /\s+/, $l)[0, 1];
@@ -37,7 +38,7 @@ for my $chr (keys %iv) {
 }
 
 my (%dep0, $cur, $ivs, $j);
-open my $sd, '<', $sr_dep or die "$sr_dep: $!";
+open my $sd, '<', ($sr_dep eq '-' ? '/dev/stdin' : $sr_dep) or die "$sr_dep: $!";
 while (my $l = <$sd>) {
     my $t = index($l, "\t");
     my $chr = substr($l, 0, $t);

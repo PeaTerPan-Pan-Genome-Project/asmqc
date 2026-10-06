@@ -424,3 +424,24 @@ resolve the link). Joins: `cat` for table-ordered outputs and the clip scan,
 compares segmented with genome-wide results for 1, 2, 3 and 8 segments on a
 BAM with clipped and indel-bearing read clusters. M9 and M11 on synthetic
 data are identical to 0.1.3, and so are CRAQ's filtered BAMs (records).
+
+### Zero-depth list readers (2026-10-07, 0.1.5)
+
+Issue #3: in 0.1.4 (JI1006, 4 h 42 min) CRAQ took 2 h 24 min with a 92 GiB
+peak, about 75 min of it from "Search noisy error region" on. Three scripts
+read `SRout/Nonmap.loc` (every zero-depth short-read position, ~508 M lines):
+`get_nonmap_region.pl` (called with the same file twice, and in the final
+report with `SRout/Nonmap.loc` and `LRout/Nonmap.loc`; the issue's rewrite
+covered only the first case), `remove_ngs_normal.pl` (whole list as a hash to
+look ±10 bp around CRE candidates) and, downstream,
+`search_uncertain_region.pl` (all zero-depth regions against all putative
+errors). Replacements keep file 1 as merged runs, keep only positions inside
+candidate windows, and binary-search sorted positions; interval lookups use a
+forward pointer per sequence. On ~10 M zero-depth positions: 38 s / 2.7 GB →
+7 s / 7 MB (same file), 36 s → 19 s (two files), 7.8 s / 1.4 GB → 7.2 s /
+10 MB (`remove_ngs_normal.pl`). End-to-end the first synthetic run showed a
+lower low-confidence share: `runAQI.sh` pipes into
+`search_uncertain_region.pl -`, and the replacement's three-argument open()
+did not read `-` as standard input. All replacements now do; a test calls
+each with `-`. Manifest: `wall_seconds` per stage is now elapsed time
+(benchmark file mtime as rule end), `rule_seconds` the old sum.

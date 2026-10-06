@@ -12,6 +12,7 @@
 # strings, runs by position. Runs are merged after sorting, so the result does
 # not depend on the depth file being sorted.
 use strict;
+# "-" reads standard input, as CRAQ's two-argument open() does.
 
 my ($infile) = @ARGV;
 my (%starts, %ends);    # chr -> run starts / ends, in reading order
@@ -19,7 +20,7 @@ my ($cc, $s, $e);
 
 sub close_run { if (defined $cc) { push @{ $starts{$cc} }, $s; push @{ $ends{$cc} }, $e } }
 
-open my $in, '<', $infile or die "$infile: $!";
+open my $in, '<', ($infile eq '-' ? '/dev/stdin' : $infile) or die "$infile: $!";
 while (my $l = <$in>) {
     my $t1 = index($l, "\t");
     my $t2 = index($l, "\t", $t1 + 1);

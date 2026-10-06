@@ -4,6 +4,27 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions
 follow semantic versioning; results are comparable only within one
 `MAJOR.MINOR` version.
 
+## [0.1.5] - 2026-10-07
+
+Shorter and leaner M9 (CRAQ); results identical to 0.1.4.
+
+### Changed
+
+- Three more CRAQ scripts in the overlay. `get_nonmap_region.pl` and
+  `remove_ngs_normal.pl` loaded the whole zero-depth short-read list
+  (~500 M positions, ~100 GB as Perl hashes) and now keep it as runs or only
+  inside candidate windows; `search_uncertain_region.pl` compared every
+  zero-depth region with every putative error and now searches sorted
+  positions (its rows come out in a fixed instead of a run-dependent order).
+- `run_manifest.json`: `wall_seconds` is each stage's elapsed time (first
+  rule start to last rule end); the sum of its rules' times, reported there
+  until 0.1.4, is now `rule_seconds`.
+
+### Fixed
+
+- Overlay scripts read `-` as standard input, as CRAQ's do (none of the
+  replacements in 0.1.2–0.1.4 was called that way).
+
 ## [0.1.4] - 2026-10-06
 
 Shorter runs with reads; results identical to 0.1.3.

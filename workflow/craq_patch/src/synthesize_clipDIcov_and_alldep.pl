@@ -9,6 +9,7 @@
 # sequence and position with index/substr first and applies the original
 # regex and logic only to lines at an indel site.
 use strict;
+# "-" reads standard input, as CRAQ's two-argument open() does.
 
 if (@ARGV != 2) {
     print "\nUSE: this script is to combian breakpoint depth and total_depth \n \nperl $0  break.cov depth - > my.cover_rate\n\n";
@@ -16,7 +17,7 @@ if (@ARGV != 2) {
 }
 my ($bk_depth_file, $depth_file) = @ARGV;
 my (%bk, %bk_tmp, %want);
-open my $in0, '<', $bk_depth_file or die "$bk_depth_file: $!";
+open my $in0, '<', ($bk_depth_file eq '-' ? '/dev/stdin' : $bk_depth_file) or die "$bk_depth_file: $!";
 while (my $line = <$in0>) {
     chomp $line;
     my ($chr, $DIpos, $stran, $DInum, $DIlen, $class, $DIsame_num) =
@@ -28,7 +29,7 @@ while (my $line = <$in0>) {
 }
 close $in0;
 
-open my $in1, '<', $depth_file or die "$depth_file: $!";
+open my $in1, '<', ($depth_file eq '-' ? '/dev/stdin' : $depth_file) or die "$depth_file: $!";
 while (my $line2 = <$in1>) {
     my $t1 = index($line2, "\t");
     next if $t1 < 0;

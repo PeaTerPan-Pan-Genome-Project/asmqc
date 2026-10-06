@@ -365,7 +365,8 @@ If NCBI's FASTA formatting ever changes the file md5, verify the md5 of the
 {
   "asmqc_version": "1.0.0", "git_commit": "…", "lockfile_sha256": {"core": "…"},
   "label": "…", "command_line": "…", "start": "…", "end": "…",
-  "wall_seconds": {"m01": 0},
+  "wall_seconds": {"map": 0, "total": 0},
+  "rule_seconds": {"map": 0},
   "host": {"cpu_model": "…", "cpu_flags": ["avx2", "avx512f"], "threads": 32, "mem_gb": 128},
   "inputs": {
     "assembly": {"name": "…", "md5": "…", "bytes": 0},
@@ -787,11 +788,17 @@ env is not modified. Two changes, both with byte-identical results:
   candidates) from region queries on the BAMs (`asmqc_region_depth.pl`:
   `samtools depth -a [-Q MAPQ] -b windows`, limited to the sequences in the
   stream, plus position 1, which CRAQ's window scripts never store).
-- **Streaming scripts.** Eight scripts that loaded the tables into Perl hashes
-  or parsed every line with a regex are replaced: `get_ER.pl`,
+- **Streaming scripts.** Eleven scripts that loaded per-base tables or the
+  zero-depth list (`Nonmap.loc`, ~500 M positions) into Perl hashes, parsed
+  every line with a regex, or compared all pairs are replaced: `get_ER.pl`,
   `LRcoverRate_srdep_filter.pl`, `synthesize_LRbkdep_and_alldep.pl`,
   `synthesize_SRbkdep_and_alldep.pl`, `synthesize_clipDIcov_and_alldep.pl`,
-  `search_dep0.pl`, `LReffect_size.pl`, `SReffect_size.pl`.
+  `search_dep0.pl`, `LReffect_size.pl`, `SReffect_size.pl`,
+  `get_nonmap_region.pl`, `remove_ngs_normal.pl`,
+  `search_uncertain_region.pl`. All give byte-identical output, except that
+  `search_uncertain_region.pl` prints its regions in input order where CRAQ
+  prints them in (run-dependent) hash order; its only reader adds up their
+  lengths. As in CRAQ, a file argument `-` reads standard input.
 
 `tests/unit/test_craq_patch.py` compares each replacement with the original
 on generated tables, checks the region output against the full table line
@@ -1057,6 +1064,7 @@ The concrete data and expected values are kept privately by the maintainers.
 | 2026-10-06 | CRAQ: six depth-table scripts replaced by output-identical streaming versions (issue #2); patch release, recorded under `tool_patches` |
 | 2026-10-06 | CRAQ: no per-base depth tables written; one streamed depth pass per BAM, region queries for the AQI lookups (patched runLR/runSR/runAQI drivers); results identical |
 | 2026-10-06 | Read types mapped concurrently (threads by input size); CRAQ passes run per segment of whole sequences in parallel; CRAQ share up to 16 threads; results identical |
+| 2026-10-07 | CRAQ: zero-depth list readers streamed (issue #3; removes the ~92 GiB peak); manifest `wall_seconds` = stage elapsed time, `rule_seconds` = sum of rule times |
 
 ## 13. Open points (to the maintainers before deciding)
 

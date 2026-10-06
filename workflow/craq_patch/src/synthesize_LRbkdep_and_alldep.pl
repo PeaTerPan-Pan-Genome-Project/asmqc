@@ -16,6 +16,7 @@
 # Assumes samtools depth order: each chromosome in one block, positions
 # ascending.
 use strict;
+# "-" reads standard input, as CRAQ's two-argument open() does.
 
 if (@ARGV != 2) { print "USE: $0 LR_break.depth LR_sort.depth\n"; exit 1; }
 my ($bkfile, $depfile) = @ARGV;
@@ -23,7 +24,7 @@ my $span = 10;
 my $MASK = 63;
 
 my %cand;    # chr -> [[chr, pos, strand, bkdep], ...] in input order
-open my $bk, '<', $bkfile or die "$bkfile: $!";
+open my $bk, '<', ($bkfile eq '-' ? '/dev/stdin' : $bkfile) or die "$bkfile: $!";
 while (my $l = <$bk>) {
     chomp $l;
     my @arr = split /\t/, $l;
@@ -72,7 +73,7 @@ sub start_chr {
     $pi = 0;
 }
 
-open my $dp, '<', $depfile or die "$depfile: $!";
+open my $dp, '<', ($depfile eq '-' ? '/dev/stdin' : $depfile) or die "$depfile: $!";
 while (my $l = <$dp>) {
     my $t1 = index($l, "\t");
     my $c = substr($l, 0, $t1);

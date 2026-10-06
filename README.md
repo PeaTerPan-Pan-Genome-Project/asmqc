@@ -143,37 +143,33 @@ breakpoints in M9.
 ## Resources
 
 Measured on one pea assembly (4.22 Gb, chr1–chr7 plus 56 unplaced
-sequences) on an AMD EPYC 9654 host, with the work directory on local
-disk. Wall times are from `run_manifest.json`.
+sequences) on an AMD EPYC host, with the work directory on local disk. Wall
+times are from `run_manifest.json`; peak memory from `logs/benchmarks/`.
 
-| Run type | Threads | Wall time |
-|---|---|---|
-| Assembly only (M1, M2, M4–M7) | 32 | 28 min |
-| With Illumina (58 Gb, ~14×) and HiFi (~21×) reads | 64 | 18.4 h |
+Assembly only (M1, M2, M4–M7), 32 threads: 28 min.
 
-Wall time per stage, with reads (64 threads):
+With Illumina (58 Gb, ~14×) and HiFi (~21×) reads, 64 threads and
+`--mem-gb 256`. Results are identical in all versions; the run time fell as
+CRAQ (M9) was made to run alongside the other modules and its scripts were
+rewritten:
 
-| Stage | Wall time |
-|---|---|
-| M9 (CRAQ) | 15.1 h |
-| Read mapping (Illumina and HiFi) | 2.0 h |
-| M11 (variant calling and classification) | 32 min |
-| meryl k-mer counting | 17 min |
-| M8 (Merqury) | 11 min |
-| M6 (BUSCO) | 9 min (14 min on 32 threads) |
-| M2 (QUAST) | 6 min |
-| M1, M4, M5, M7, prep and scan | 9 min together |
+| Version | Total | CRAQ (M9) | CRAQ peak memory | Work space peak |
+|---|---|---|---|---|
+| 0.1.0 | 18.4 h | 15.1 h | not recorded | not recorded |
+| 0.1.1 | 14.7 h | 12.4 h | 114 GiB | > 148 GB (depth tables alone) |
+| 0.1.2 | 8.0 h | 5.8 h | 92 GiB | not recorded |
+| 0.1.3 | 5.8 h | 3.2 h | 92 GiB | 261 GB |
+| 0.1.4 | 4.7 h | 2.5 h | 92 GiB | 327 GB |
 
-These times are from 0.1.0, where every module waited for CRAQ. In 0.1.1
-the other modules run alongside CRAQ and CRAQ's two read passes run
-concurrently: the same run took 14.7 h, of which CRAQ 12.4 h, with a peak of
-116 GB (CRAQ). 0.1.2 replaces the CRAQ scripts that loaded per-base depth
-tables into memory with streaming versions, and 0.1.3 stops writing those
-tables (about 150 GB less work space); the expected run time is well under
-half of 0.1.1's, with a much lower memory peak (to be measured). Plan for
-128 GB of RAM and about 350 GB of work space with reads, 64 GB and 60 GB
-without. Each run keeps per-rule wall time and peak memory in
-`logs/benchmarks/`.
+0.1.2–0.1.4 ran at the same time on one host, which made identical code
+13–22 % slower. 0.1.5 removes the step behind the 92 GiB CRAQ peak (about
+75 min of 0.1.4's CRAQ time); its times are to be measured. Read mapping
+takes about 2 h, M11 about 30 min, everything else less.
+
+Plan for 128 GB of RAM and about 350 GB of work space with reads, 64 GB and
+60 GB without. In `run_manifest.json`, `wall_seconds` gives each stage's
+elapsed time and `rule_seconds` the sum of its rules' times (larger when
+rules of a stage run at the same time).
 
 Put `--workdir` on fast scratch with enough space. A free-space shortfall is
 reported as a warning before the run starts.

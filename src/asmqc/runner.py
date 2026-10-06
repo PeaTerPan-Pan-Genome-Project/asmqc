@@ -203,6 +203,7 @@ def run(opts: RunOptions, command_line: str) -> int:
     fl.write(out / "flags.tsv", summary.all_flags(results))
 
     end = dt.datetime.now(dt.UTC)
+    wall, rule_secs = summary.wall_seconds(work)
     manifest = {
         "asmqc_version": info["version"],
         "git_commit": info["git_commit"],
@@ -211,7 +212,8 @@ def run(opts: RunOptions, command_line: str) -> int:
         "command_line": command_line,
         "start": start.isoformat(timespec="seconds"),
         "end": end.isoformat(timespec="seconds"),
-        "wall_seconds": summary.wall_seconds(work) | {"total": round(time.monotonic() - t0, 1)},
+        "wall_seconds": wall | {"total": round(time.monotonic() - t0, 1)},
+        "rule_seconds": rule_secs,
         "snakemake_exit_code": rc,
         "host": host_info(opts),
         "inputs": inputs_info(opts, assembly_md5),

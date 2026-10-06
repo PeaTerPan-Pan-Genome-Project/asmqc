@@ -17,6 +17,7 @@
 # Assumes samtools depth order: each chromosome in one block, positions
 # ascending.
 use strict;
+# "-" reads standard input, as CRAQ's two-argument open() does.
 
 if (@ARGV != 5) {
     print "USE: $0 pb/ont_depth_file   NGS_coverrate.file   window_size    window_extend_num   threshold     \n";
@@ -29,7 +30,7 @@ $ring <<= 1 while $ring < 2 * $span + 2;
 my $MASK = $ring - 1;
 
 my %cand;    # chr -> [[line, pos, clipnum], ...] in input order
-open my $cv, '<', $covfile or die "$covfile: $!";
+open my $cv, '<', ($covfile eq '-' ? '/dev/stdin' : $covfile) or die "$covfile: $!";
 while (my $l = <$cv>) {
     chomp $l;
     my @arr = split /\t/, $l;    # as the original: trailing empty fields dropped
@@ -88,7 +89,7 @@ sub start_chr {
     $pi = 0;
 }
 
-open my $dp, '<', $depfile or die "$depfile: $!";
+open my $dp, '<', ($depfile eq '-' ? '/dev/stdin' : $depfile) or die "$depfile: $!";
 while (my $l = <$dp>) {
     my $t1 = index($l, "\t");
     my $c = substr($l, 0, $t1);
